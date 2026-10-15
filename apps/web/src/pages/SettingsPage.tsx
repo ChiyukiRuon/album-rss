@@ -1,19 +1,21 @@
-import { SignOutIcon, TrashIcon } from '@phosphor-icons/react'
-import { useId, type ReactNode } from 'react'
+import { ArrowSquareOutIcon, GithubLogoIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
+import { useId, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
+import { openEndpointDialog } from '../components/endpoint/endpointDialogStore'
 import { PageHeader } from '../components/page/PageHeader'
 import { Button } from '../components/ui/Button'
 import { ConfirmButton } from '../components/ui/ConfirmButton'
 import { Segmented } from '../components/ui/Segmented'
 import { Switch } from '../components/ui/Switch'
-import { EndpointSelect } from '../components/shell/EndpointSelect'
 import { showToast } from '../components/ui/toast'
+import { endpointHost, endpointLabel, SERVICE_LABEL } from '../lib/endpoint'
 import { actions, useApp } from '../prototype/store'
+import type { Endpoint } from '../prototype/types'
 import styles from './SettingsPage.module.css'
 
 export function SettingsPage() {
   const settings = useApp((s) => s.settings)
-  const session = useApp((s) => s.session)
+  const endpoint = useApp((s) => s.endpoint)
   const endpoints = useApp((s) => s.endpoints)
   const navigate = useNavigate()
 
@@ -25,71 +27,36 @@ export function SettingsPage() {
       />
       <div className={styles.page}>
         <Section title="API 端点">
-          <Row label="当前端点" description="切换后读取所选服务的订阅和图集。">
-            <EndpointSelect />
-          </Row>
-          {endpoints.map((endpoint) => (
-            <Row
-              key={endpoint.id}
-              label={endpoint.name || endpoint.server}
-              description={`${endpoint.server} · ${endpoint.remember ? '已记住登录' : '仅本次会话'}${endpoint.id === session?.id ? ' · 当前使用' : ''}`}
-            >
-              <Button size="sm" onClick={() => navigate(`/connect?edit=${endpoint.id}`)}>
-                编辑
+          {endpoint?.kind === 'demo' && (
+            <Row label="演示数据" description="本地生成的示例，没有连接任何服务器。">
+              <CurrentBadge />
+              <Button
+                size="sm"
+                onClick={() => {
+                  actions.exitDemo()
+                  navigate('/connect', { replace: true })
+                }}
+              >
+                退出演示
               </Button>
-              {endpoint.id !== session?.id && (
-                <ConfirmButton
-                  label="删除"
-                  message="删除此端点及其在浏览器中保存的登录信息？"
-                  confirmLabel="删除端点"
-                  onConfirm={() => actions.removeEndpoint(endpoint.id!)}
-                />
-              )}
             </Row>
+          )}
+          {endpoints.map((item) => (
+            <EndpointRow key={item.id} endpoint={item} current={item.id === endpoint?.id} />
           ))}
-          <Row label="添加服务" description="每个端点可分别配置地址、凭据和是否记住登录。">
-            <Button size="sm" onClick={() => navigate('/connect?add')}>
-              添加 API 端点
+          <Row
+            label="添加 API 端点"
+            description="每个端点分别保存地址、凭据，以及是否把凭据保存在这个浏览器里。"
+          >
+            <Button
+              size="sm"
+              icon={<PlusIcon aria-hidden />}
+              onClick={() => openEndpointDialog({ mode: 'add' })}
+            >
+              添加
             </Button>
           </Row>
         </Section>
-        {session && (
-          <Section title="账号">
-            <Row
-              label={session.server}
-              description={
-                session.kind === 'demo'
-                  ? '演示数据 · 没有连接任何服务器'
-                  : `${session.service === 'miniflux' ? 'Miniflux · API 密钥' : 'Google Reader 兼容'} · ${session.username}`
-              }
-            >
-              <span className={styles.status}>
-                <span className={styles.statusDot} aria-hidden />
-                {session.kind === 'demo' ? '演示中' : '已连接'}
-              </span>
-            </Row>
-            <Row
-              label="登录信息"
-              description={
-                session.remember
-                  ? '保存在这个浏览器里，退出登录时清除。'
-                  : '只保存在内存里，刷新页面后需要重新连接。'
-              }
-            >
-              <ConfirmButton
-                label="退出登录"
-                icon={<SignOutIcon aria-hidden />}
-                variant="danger"
-                message="退出后，所有端点的登录信息和内存中的图集都会清除。已同步到服务器的已读和收藏不受影响。"
-                confirmLabel="退出登录"
-                onConfirm={() => {
-                  actions.signOut()
-                  navigate('/connect', { replace: true })
-                }}
-              />
-            </Row>
-          </Section>
-        )}
 
         <Section title="浏览">
           <SwitchRow
@@ -153,7 +120,7 @@ export function SettingsPage() {
           </Row>
         </Section>
 
-        {session?.kind === 'demo' ? (
+        {endpoint?.kind === 'demo' ? (
           <Section title="图片缓存">
             <div className={styles.usage}>
               <div className={styles.usageHead}>
@@ -207,7 +174,7 @@ export function SettingsPage() {
           </Section>
         )}
 
-        {session?.kind === 'demo' && (
+        {endpoint?.kind === 'demo' && (
           <Section title="原型调试">
             <SwitchRow
               label="模拟图片加载耗时"
@@ -231,9 +198,85 @@ export function SettingsPage() {
           </Section>
         )}
 
-        <p className={styles.about}>Album RSS · 直接连接你的 RSS 服务，不经过任何中转服务器。</p>
+        <footer className={styles.about}>
+          <p>Album RSS · 直接连接你的 RSS 服务，不经过任何中转服务器。</p>
+          <a
+            className={styles.repo}
+            href="https://github.com/ChiyukiRuon/album-rss"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <GithubLogoIcon className={styles.repoIcon} aria-hidden />
+            <span className="visually-hidden">GitHub：</span>
+            ChiyukiRuon/album-rss
+            <ArrowSquareOutIcon className={styles.repoArrow} aria-hidden />
+          </a>
+        </footer>
       </div>
     </>
+  )
+}
+
+function CurrentBadge() {
+  return (
+    <span className={styles.status}>
+      <span className={styles.statusDot} aria-hidden />
+      当前使用
+    </span>
+  )
+}
+
+function EndpointRow({ endpoint, current }: { endpoint: Endpoint; current: boolean }) {
+  const [switching, setSwitching] = useState(false)
+  const description = [
+    SERVICE_LABEL[endpoint.service],
+    endpoint.name ? endpointHost(endpoint) : null,
+    endpoint.remember ? '凭据已保存在此浏览器' : '仅本次会话，刷新后移除',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  return (
+    <Row label={endpointLabel(endpoint)} description={description}>
+      {current ? (
+        <CurrentBadge />
+      ) : (
+        <Button
+          size="sm"
+          disabled={switching}
+          onClick={async () => {
+            setSwitching(true)
+            try {
+              await actions.switchEndpoint(endpoint.id)
+            } catch (error) {
+              showToast({
+                message: `无法切换到「${endpointLabel(endpoint)}」`,
+                detail: error instanceof Error ? error.message : undefined,
+                tone: 'warning',
+              })
+            } finally {
+              setSwitching(false)
+            }
+          }}
+        >
+          {switching ? '正在切换…' : '切换'}
+        </Button>
+      )}
+      <Button size="sm" onClick={() => openEndpointDialog({ mode: 'edit', id: endpoint.id })}>
+        编辑
+      </Button>
+      <ConfirmButton
+        label="删除"
+        icon={<TrashIcon aria-hidden />}
+        variant="danger"
+        message={
+          current
+            ? '删除正在使用的端点及其在浏览器中保存的凭据？之后会切换到下一个端点；已同步到服务器的已读和收藏不受影响。'
+            : '删除这个端点及其在浏览器中保存的凭据？已同步到服务器的已读和收藏不受影响。'
+        }
+        confirmLabel="删除端点"
+        onConfirm={() => void actions.removeEndpoint(endpoint.id)}
+      />
+    </Row>
   )
 }
 

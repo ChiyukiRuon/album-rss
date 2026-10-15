@@ -5,15 +5,14 @@ import { Button } from '../components/ui/Button'
 import { EntryWall } from '../components/wall/EntryWall'
 import { relativeTime } from '../lib/format'
 import { useNow } from '../lib/useNow'
-import { useListSnapshot, useUnreadCounts } from '../prototype/selectors'
+import { useScopeList, useUnreadCounts } from '../prototype/selectors'
 import { actions, useApp } from '../prototype/store'
-import styles from './pages.module.css'
-import { ModeSwitch, NewItemsPill, StatusSwitch, SyncButton } from './wallControls'
+import { FolderChips, ModeSwitch, NewItemsPill, StatusSwitch, SyncButton } from './wallControls'
 import { useWallParams } from './useWallParams'
 
 export function BrowsePage() {
   const { status, mode, folderId, update } = useWallParams()
-  const ids = useListSnapshot({ status, folderId })
+  const list = useScopeList({ status, folderId })
   const counts = useUnreadCounts()
   const folders = useApp((s) => s.folders)
   const sync = useApp((s) => s.sync)
@@ -31,7 +30,10 @@ export function BrowsePage() {
         subtitle={
           <>
             {folder ? `${folder.title} · ` : ''}
-            {status === 'unread' ? `${unread} 个未读图集` : `${ids.length} 个图集`} · {syncedText}
+            {status === 'unread'
+              ? `${unread} 个未读图集`
+              : `${list.ids.length}${list.hasMore ? '+' : ''} 个图集`}{' '}
+            · {syncedText}
           </>
         }
         actions={<SyncButton />}
@@ -47,39 +49,24 @@ export function BrowsePage() {
               onChange={(value) => update({ mode: value === 'albums' ? null : value })}
             />
             {/* 分类来自 RSS 服务；只有一个分类时筛选没有意义，不显示 */}
-            {folders.length > 1 && <span className={styles.divider} aria-hidden />}
             {folders.length > 1 && (
-              <div className={styles.chips} role="group" aria-label="按分类筛选">
-                <button
-                  type="button"
-                  className={styles.chip}
-                  aria-pressed={!folderId}
-                  onClick={() => update({ folder: null })}
-                >
-                  全部订阅
-                </button>
-                {folders.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    className={styles.chip}
-                    aria-pressed={folderId === f.id}
-                    onClick={() => update({ folder: f.id })}
-                  >
-                    {f.title}
-                    {counts.byFolder[f.id] ? (
-                      <span className={styles.chipCount}>{counts.byFolder[f.id]}</span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
+              <FolderChips
+                inline
+                chips={folders.map((f) => ({
+                  id: f.id,
+                  title: f.title,
+                  count: counts.byFolder[f.id],
+                }))}
+                value={folderId}
+                onChange={(id) => update({ folder: id })}
+              />
             )}
           </>
         }
       />
       <NewItemsPill />
       <EntryWall
-        ids={ids}
+        list={list}
         mode={mode}
         label={folder ? `${folder.title}中的图集` : '图集'}
         dimRead

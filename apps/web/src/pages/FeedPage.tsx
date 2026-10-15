@@ -16,8 +16,8 @@ import { EntryWall } from '../components/wall/EntryWall'
 import { cx } from '../lib/cx'
 import { relativeTime, siteName } from '../lib/format'
 import { useNow } from '../lib/useNow'
-import { useCategoryLabel, useListSnapshot, useUnreadCounts } from '../prototype/selectors'
-import { actions, appStore, useApp } from '../prototype/store'
+import { useCategoryLabel, useScopeList, useUnreadCounts } from '../prototype/selectors'
+import { actions, useApp } from '../prototype/store'
 import styles from './pages.module.css'
 import { ModeSwitch, StatusSwitch } from './wallControls'
 import { useWallParams } from './useWallParams'
@@ -28,9 +28,11 @@ export function FeedPage() {
   const navigate = useNavigate()
   const feed = useApp((s) => s.feeds.find((f) => f.id === feedId))
   const refreshing = useApp((s) => Boolean(s.refreshingFeeds[feedId]))
-  const canRefresh = useApp((s) => s.session?.kind === 'demo' || s.session?.service === 'miniflux')
+  const canRefresh = useApp(
+    (s) => s.endpoint?.kind === 'demo' || s.endpoint?.service === 'miniflux',
+  )
   const { status, mode, update } = useWallParams()
-  const ids = useListSnapshot({ status, feedId })
+  const list = useScopeList({ status, feedId })
   const counts = useUnreadCounts()
   const categoryOf = useCategoryLabel()
   const now = useNow()
@@ -66,12 +68,6 @@ export function FeedPage() {
     ) : null,
   ].filter(Boolean)
 
-  const markAllRead = () => {
-    const state = appStore.get()
-    const targets = state.order.filter((id) => state.entries[id]?.feedId === feed.id)
-    actions.markAllRead(targets, `「${feed.author}」`)
-  }
-
   return (
     <>
       <PageHeader
@@ -103,7 +99,7 @@ export function FeedPage() {
               disabled={unread === 0}
               message={`将「${feed.author}」的 ${unread} 个未读图集标为已读？之后可以撤销。`}
               confirmLabel="标为已读"
-              onConfirm={markAllRead}
+              onConfirm={() => void actions.markFeedRead(feed)}
             />
           </>
         }
@@ -142,7 +138,7 @@ export function FeedPage() {
         </div>
       )}
       <EntryWall
-        ids={ids}
+        list={list}
         mode={mode}
         label={`${feed.author}的图集`}
         dimRead

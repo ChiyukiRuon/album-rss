@@ -22,9 +22,59 @@
   background: var(--line);
 }
 
+/*
+ * 分类筛选始终只占一行，放不下时横向滚动。浏览页在桌面端先尝试和其他选项排在同一行，
+ * 放不下时单独一行（data-own-row，由 FolderChips 量过宽度后设置）；移动端总是单独一行。
+ */
+.chipsBlock {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.chipsBlock[data-own-row='true'] {
+  flex-basis: 100%;
+}
+
+.chipsBlock[data-own-row='true'] .divider {
+  display: none;
+}
+
 .chips {
   display: flex;
   gap: 6px;
+  min-width: 0;
+  /* 横向滚动会裁掉溢出的部分，四周留出焦点环的位置 */
+  margin: -4px;
+  padding: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+/* 还能往哪边滚，就在哪边渐隐 */
+.chips[data-fade='end'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+}
+
+.chips[data-fade='start'] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent);
+}
+
+.chips[data-fade='both'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 36px,
+    #000 calc(100% - 36px),
+    transparent
+  );
 }
 
 .chip {
@@ -60,19 +110,8 @@
 }
 
 @media (max-width: 899px) {
-  .chips {
+  .chipsBlock {
     flex-basis: 100%;
-    flex-wrap: wrap;
-    min-width: 0;
-  }
-
-  .chip {
-    max-width: 100%;
-    height: auto;
-    min-height: 32px;
-    padding-block: 5px;
-    white-space: normal;
-    overflow-wrap: anywhere;
   }
 
   .divider {

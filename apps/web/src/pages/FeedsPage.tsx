@@ -1,6 +1,6 @@
 import { WarningCircleIcon } from '@phosphor-icons/react'
 import { useMemo } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { PageHeader } from '../components/page/PageHeader'
 import { Avatar } from '../components/ui/Avatar'
 import { ImageThumb } from '../components/ui/ImageThumb'
@@ -11,7 +11,7 @@ import { hasImages, useUnreadCounts } from '../prototype/selectors'
 import { useApp } from '../prototype/store'
 import type { Feed, ImageAsset } from '../prototype/types'
 import styles from './FeedsPage.module.css'
-import { SyncButton } from './wallControls'
+import { FolderChips, SyncButton } from './wallControls'
 
 export function FeedsPage() {
   const feeds = useApp((s) => s.feeds)
@@ -19,6 +19,7 @@ export function FeedsPage() {
   const entries = useApp((s) => s.entries)
   const order = useApp((s) => s.order)
   const counts = useUnreadCounts()
+  const [params, setParams] = useSearchParams()
 
   // 每个订阅最近的三张封面
   const covers = useMemo(() => {
@@ -43,14 +44,47 @@ export function FeedsPage() {
     { id: 'none', title: '未分类', feeds: feeds.filter((feed) => feed.folderIds.length === 0) },
   ].filter((group) => group.feeds.length > 0)
 
+  // 分类筛选放在地址里，和浏览页一样；找不到的分类（例如切换端点后）当作全部
+  const requested = params.get('folder')
+  const active = groups.find((group) => group.id === requested)
+  const setFolder = (id: string | null) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (id === null) next.delete('folder')
+        else next.set('folder', id)
+        return next
+      },
+      { replace: true },
+    )
+
   return (
     <>
       <PageHeader
         title="订阅"
-        subtitle={`${feeds.length} 个订阅 · ${folders.length} 个分类`}
+        subtitle={
+          active
+            ? `${active.title} · ${active.feeds.length} 个订阅`
+            : `${feeds.length} 个订阅 · ${folders.length} 个分类`
+        }
         actions={<SyncButton />}
+        wrapToolbar
+        toolbar={
+          // 不到两个分类时筛选没有意义，和浏览页的规则一致
+          folders.length > 1 ? (
+            <FolderChips
+              chips={groups.map((group) => ({
+                id: group.id,
+                title: group.title,
+                count: group.feeds.length,
+              }))}
+              value={active?.id}
+              onChange={setFolder}
+            />
+          ) : undefined
+        }
       />
-      {groups.map((group) => (
+      {(active ? [active] : groups).map((group) => (
         <section key={group.id} className={styles.group} aria-labelledby={`folder-${group.id}`}>
           <h2 id={`folder-${group.id}`} className={styles.groupTitle}>
             {group.title}
@@ -79,7 +113,7 @@ function FeedTile({ feed, unread, covers }: { feed: Feed; unread: number; covers
     <Link to={feedPath(feed.id)} className={styles.tile}>
       <span className={styles.covers} aria-hidden>
         {[0, 1, 2].map((i) => (
-          <ImageThumb key={i} url={covers[i]?.url} className={styles.cover} />
+          <ImageThumb key={i} url={covers[i]?.url} className={styles.cover} lazy />
         ))}
       </span>
       <span className={styles.body}>

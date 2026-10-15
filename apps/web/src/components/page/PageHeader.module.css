@@ -49,6 +49,12 @@
   backdrop-filter: blur(16px) saturate(1.4);
 }
 
+/* 可以换行的工具栏：放不下的部分另起一行，例如浏览页的分类筛选 */
+.wrapToolbar {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
 @media (max-width: 1199px) {
   .toolbar {
     margin: 0 -24px 16px;
@@ -78,8 +84,6 @@
   }
 
   .wrapToolbar {
-    flex-wrap: wrap;
-    overflow-x: visible;
     mask-image: none;
   }
 }

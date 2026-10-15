@@ -33,22 +33,22 @@ function Root() {
   return <Outlet />
 }
 
-/** 没有登录（或选择演示数据）时先去连接页 */
-function RequireSession() {
-  const session = useApp((s) => s.session)
+/** 没有正在使用的端点（或演示数据）时先去连接页 */
+function RequireEndpoint() {
+  const endpoint = useApp((s) => s.endpoint)
   const loaded = useApp((s) => s.loaded)
   useEffect(() => {
-    if (session?.kind === 'connected' && !loaded) void actions.sync({ explicit: true })
-  }, [session, loaded])
-  if (session && !loaded)
+    if (endpoint?.kind === 'connected' && !loaded) void actions.sync({ explicit: true })
+  }, [endpoint, loaded])
+  if (endpoint && !loaded)
     return (
       <EmptyState
         icon={<CircleNotchIcon />}
         title="正在同步订阅和图集…"
-        description="正在读取 RSS 服务里的订阅和文章。"
+        description="正在读取订阅和最新一页文章，更早的文章会在浏览时按需读取。"
       />
     )
-  return session ? <AppShell /> : <Navigate to="/connect" replace />
+  return endpoint ? <AppShell /> : <Navigate to="/connect" replace />
 }
 
 const router = createBrowserRouter([
@@ -57,7 +57,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/connect', element: <ConnectPage /> },
       {
-        element: <RequireSession />,
+        element: <RequireEndpoint />,
         children: [
           { index: true, element: <BrowsePage /> },
           { path: 'starred', element: <StarredPage /> },

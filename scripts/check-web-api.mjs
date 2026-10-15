@@ -130,21 +130,30 @@ try {
     }
     throw new Error('Browser condition timed out')
   }
+  const apiRequests = () =>
+    evaluate(
+      `performance.getEntriesByType('resource').filter(r => r.name.startsWith(${JSON.stringify(base + '/v1/')})).length`,
+    )
+  const fill = (label, value, root = 'document') => `(() => {
+    const input = [...${root}.querySelectorAll('input')].find(i => [...i.labels].some(l => l.textContent === ${JSON.stringify(label)}));
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`
+  const scope = (key) => `(async () => {
+    const { appStore } = await import('/src/prototype/store.ts');
+    const scope = appStore.get().scopes[${JSON.stringify(key)}];
+    return scope ? { ids: scope.ids.length, done: scope.done } : null;
+  })()`
   await command('Page.navigate', { url: web + '/connect' })
   await waitFor(`!!document.querySelector('form')`)
   await evaluate(`(async () => {
     const { actions } = await import('/src/prototype/store.ts');
-    actions.updateSettings({ autoRead: false, simulateLatency: false });
-    const fill = (label, value) => {
-      const input = [...document.querySelectorAll('input')].find(i => [...i.labels].some(l => l.textContent === label));
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-    fill('服务地址', ${JSON.stringify(base)});
-    fill('API 密钥', ${JSON.stringify(key.token)});
-    fill('服务公开地址（可选）', ${JSON.stringify(setting('BASE_URL'))});
-    document.querySelector('input[type=checkbox]').click();
+    actions.updateSettings({ autoRead: false, simulateLatency: false, defaultStatus: 'unread' });
   })()`)
+  await evaluate(fill('服务地址', base))
+  await evaluate(fill('API 密钥', key.token))
+  await evaluate(fill('服务公开地址（可选）', setting('BASE_URL')))
+  await evaluate(`document.querySelector('input[type=checkbox]').click()`)
   await evaluate(`document.querySelector('form').requestSubmit()`)
   await waitFor(`location.pathname === '/' && !!document.querySelector('nav')`)
   const summary = await evaluate(`(async () => {
@@ -153,13 +162,20 @@ try {
     return { feeds: s.feeds.length, entries: s.order.length,
       images: Object.values(s.entries).reduce((n, e) => n + e.images.length, 0),
       demoImages: Object.values(s.entries).some(e => e.images.some(i => i.url.startsWith('demo:'))),
-      tokenSaved: !!JSON.parse(localStorage.getItem('album-rss:session')).token };
+      counts: s.unread !== null,
+      tokenSaved: !!JSON.parse(localStorage.getItem('album-rss:endpoints'))[0]?.token };
   })()`)
-  assert(summary.feeds > 0 && summary.entries > 100 && summary.images > 0)
+  summary.connectRequests = await apiRequests()
+  assert(summary.feeds > 0 && summary.entries > 0 && summary.entries <= 100 && summary.images > 0)
   assert.equal(summary.demoImages, false)
   assert.equal(summary.tokenSaved, true)
+  assert.equal(summary.counts, true)
+  // /v1/me、/v1/feeds、/v1/categories、/v1/feeds/counters 与第一页文章
+  assert(summary.connectRequests <= 5, `Connect made ${summary.connectRequests} API requests`)
   report.summary = summary
-  report.checks.push('form login, complete pagination, real image extraction, remembered token')
+  report.checks.push(
+    'form connect reads subscriptions, counters and one page only, real image extraction, remembered token',
+  )
 
   await evaluate(`(async () => {
     const { parseEntry } = await import('/src/lib/parseEntry.ts');
@@ -173,19 +189,72 @@ try {
   report.checks.push(
     'safe HTML parsing, picture/srcset, lazy images, attachment deduplication, tracker filtering',
   )
+
+  // “全部”列表：先读第一页，滚到底再读下一页
+  await evaluate(
+    `document.querySelectorAll('[role=radiogroup][aria-label="显示范围"] [role=radio]')[1].click()`,
+  )
+  const allKey = JSON.stringify(['all', null, null])
+  await waitFor(`(async () => (await ${scope(allKey)})?.ids > 0)()`)
+  const firstPage = await evaluate(scope(allKey))
+  let paged = firstPage
+  // 卡片测量完尺寸才会放进瀑布流；无法访问的图片要等到超时，这里留足时间
+  const deadline = Date.now() + 120_000
+  while (Date.now() < deadline && !paged.done && paged.ids === firstPage.ids) {
+    await evaluate(`window.scrollTo(0, document.documentElement.scrollHeight)`)
+    await delay(250)
+    paged = await evaluate(scope(allKey))
+  }
+  assert(firstPage.done || paged.ids > firstPage.ids, 'Scrolling did not load the next page')
+  report.paging = { firstPage: firstPage.ids, afterScroll: paged.ids }
+  report.checks.push('older articles load page by page when the list reaches the end')
+
   await command('Page.reload')
   await waitFor(`!!document.querySelector('nav') && location.pathname === '/'`)
   await waitFor(`document.querySelectorAll('article[data-card-key]').length > 0`)
   const screenshot = await command('Page.captureScreenshot', { format: 'png' })
   await writeFile('.local-check/web-api.png', Buffer.from(screenshot.data, 'base64'))
-  report.checks.push('reload restores credentials and refetches articles, wall renders')
+  report.checks.push(
+    'reload restores the remembered endpoint and refetches the first page, wall renders',
+  )
   await evaluate(`document.querySelector('a[href="/feeds"]').click()`)
   await waitFor(`location.pathname === '/feeds'`)
   await evaluate(`document.querySelector('a[href^="/feeds/"]').click()`)
   await waitFor(`location.pathname.startsWith('/feeds/') && !!document.querySelector('h1')`)
+  await waitFor(`document.querySelectorAll('article[data-card-key]').length > 0`)
   await evaluate(`document.querySelector('article[data-card-key] a').click()`)
   await waitFor(`!!document.querySelector('[data-viewer-root]')`)
-  report.checks.push('subscription navigation and album viewer')
+  await evaluate(`history.back()`)
+  await waitFor(`!document.querySelector('[data-viewer-root]')`)
+  report.checks.push('subscription page reads its own list, album viewer opens')
+
+  // 通过左下角菜单的弹窗添加第二个端点，再切回第一个：访问过的端点直接用缓存
+  await evaluate(`document.querySelector('button[aria-haspopup="menu"]').click()`)
+  await waitFor(`!!document.querySelector('[role=menu]')`)
+  await evaluate(
+    `[...document.querySelectorAll('[role=menuitem]')].find(b => b.textContent.includes('添加 API 端点')).click()`,
+  )
+  await waitFor(`!!document.querySelector('dialog[open] form')`)
+  const dialog = `document.querySelector('dialog[open]')`
+  await evaluate(fill('服务地址', base, dialog))
+  await evaluate(fill('API 密钥', key.token, dialog))
+  await evaluate(fill('端点名称（可选）', 'check-second', dialog))
+  await evaluate(`${dialog}.querySelector('form').requestSubmit()`)
+  await waitFor(`(async () => {
+    const { appStore } = await import('/src/prototype/store.ts');
+    return !document.querySelector('dialog[open]') && appStore.get().endpoint?.name === 'check-second';
+  })()`)
+  const beforeSwitch = await apiRequests()
+  await evaluate(`document.querySelector('button[aria-haspopup="menu"]').click()`)
+  await waitFor(`!!document.querySelector('[role=menu]')`)
+  await evaluate(`document.querySelector('[role=menuitemradio][aria-checked=false]').click()`)
+  await waitFor(`(async () => {
+    const { appStore } = await import('/src/prototype/store.ts');
+    return appStore.get().endpoint?.name !== 'check-second' && !document.querySelector('[role=menu]');
+  })()`)
+  report.switchRequests = (await apiRequests()) - beforeSwitch
+  assert.equal(report.switchRequests, 0, 'Switching back to a cached endpoint made API requests')
+  report.checks.push('add endpoint in the dialog, switch back from cache without API requests')
 
   if (writeMode) {
     const { entries } = await api('/v1/entries?limit=1&order=id&direction=asc', {}, key.token)
@@ -223,13 +292,13 @@ try {
   }
   await evaluate(`(async () => {
     const { actions, appStore } = await import('/src/prototype/store.ts');
-    actions.signOut();
-    if (localStorage.getItem('album-rss:session') || appStore.get().order.length) throw new Error('Sign-out cleanup failed');
+    for (const endpoint of appStore.get().endpoints) await actions.removeEndpoint(endpoint.id);
+    if (appStore.get().endpoint || JSON.parse(localStorage.getItem('album-rss:endpoints')).length || localStorage.getItem('album-rss:active')) throw new Error('Endpoint cleanup failed');
     actions.enterDemo();
     if (!Object.values(appStore.get().entries).some(e => e.images.some(i => i.url.startsWith('demo:')))) throw new Error('Demo isolation failed');
-    actions.signOut();
+    actions.exitDemo();
   })()`)
-  report.checks.push('sign-out cleanup and demo isolation')
+  report.checks.push('endpoint removal clears saved credentials, demo isolation')
   console.log(JSON.stringify(report, null, 2))
 } finally {
   try {

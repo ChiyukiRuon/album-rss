@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { Outlet, ScrollRestoration, useSearchParams } from 'react-router'
 import { actions, appStore, useApp } from '../../prototype/store'
+import { EndpointDialog } from '../endpoint/EndpointDialog'
+import { openEndpointDialog } from '../endpoint/endpointDialogStore'
 import { Button } from '../ui/Button'
 import { Toaster } from '../ui/Toaster'
 import { Viewer } from '../viewer/Viewer'
@@ -24,6 +26,7 @@ function useForegroundSync() {
 
 export function AppShell() {
   const sync = useApp((s) => s.sync)
+  const endpoint = useApp((s) => s.endpoint)
   const [params] = useSearchParams()
   const viewerOpen = params.has(VIEW_PARAM)
   useForegroundSync()
@@ -43,9 +46,14 @@ export function AppShell() {
               >
                 重试同步
               </Button>
-              <Button size="sm" onClick={() => actions.signOut()}>
-                重新连接
-              </Button>
+              {endpoint?.kind === 'connected' && (
+                <Button
+                  size="sm"
+                  onClick={() => openEndpointDialog({ mode: 'edit', id: endpoint.id })}
+                >
+                  编辑端点
+                </Button>
+              )}
             </div>
           )}
           <Outlet />
@@ -53,6 +61,7 @@ export function AppShell() {
         <TabBar />
       </div>
       <Viewer />
+      <EndpointDialog />
       <Toaster />
       {/* 滚动位置按“页面 + 筛选条件”记录，查看器参数不算在内，关闭查看器后停在跟随到的位置 */}
       <ScrollRestoration

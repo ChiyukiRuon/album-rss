@@ -11,7 +11,8 @@ html {
   text-size-adjust: 100%;
 }
 
-html[data-viewer-open] {
+html[data-viewer-open],
+html:has(dialog[open]) {
   overflow: hidden;
 }
 

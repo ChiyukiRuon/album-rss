@@ -1,18 +1,29 @@
 /* 页面状态与服务操作；演示分支保留独立的模拟数据。 */
+import type { EntryPage, RemoteEntry } from '@album-rss/core'
+import {
+  ApiError,
+  createGate,
+  createProvider,
+  loginGoogleReader,
+  normalizeServer,
+  type Provider,
+} from '@album-rss/providers'
 import { showToast, toastStore, type ToastAction } from '../components/ui/toast'
 import { createStore } from '../lib/createStore'
+import { endpointLabel } from '../lib/endpoint'
 import { configureLatency, openImage } from '../lib/imageSource'
-import { createDemoData, demoBlocksDownload } from './demoData'
-import { ApiError, createProvider, loginGoogleReader, normalizeServer } from '@album-rss/providers'
 import { parseEntry } from '../lib/parseEntry'
+import { createDemoData, demoBlocksDownload } from './demoData'
 import type {
   DownloadState,
+  Endpoint,
   Entry,
   Feed,
   Folder,
   ImageAsset,
+  ListQuery,
+  ScopeState,
   ServiceKind,
-  Session,
   Settings,
 } from './types'
 
@@ -25,15 +36,21 @@ export interface SyncState {
 }
 
 export interface AppState {
-  session: Session | null
-  endpoints: Session[]
+  /** 正在使用的端点 */
+  endpoint: Endpoint | null
+  /** 已添加的端点，不含演示数据 */
+  endpoints: Endpoint[]
   loaded: boolean
   settings: Settings
   folders: Folder[]
   feeds: Feed[]
   entries: Record<string, Entry>
-  /** 全部文章 ID，新的在前 */
+  /** 已读取的全部文章 ID，新的在前 */
   order: string[]
+  /** 各列表在服务端的分页进度，键见 scopeKey；只读用户看到的部分，滚到底再读下一页 */
+  scopes: Record<string, ScopeState>
+  /** 服务端的未读计数（订阅 ID → 篇数）；服务不提供时为 null，改按已读取的文章统计 */
+  unread: Record<string, number> | null
   sync: SyncState
   /** 列表快照版本：显式刷新或应用新内容时递增，各列表据此重新取数 */
   listVersion: number
@@ -44,8 +61,24 @@ export interface AppState {
 }
 
 const SETTINGS_KEY = 'album-rss:settings'
-const SESSION_KEY = 'album-rss:session'
 const ENDPOINTS_KEY = 'album-rss:endpoints'
+const ACTIVE_KEY = 'album-rss:active'
+/** 旧版本把当前连接单独保存在这里，读取后迁移到端点列表 */
+const LEGACY_SESSION_KEY = 'album-rss:session'
+
+/** 每页文章数。切换或添加端点时只读第一页，列表滚到底再读下一页 */
+export const PAGE_SIZE = 100
+/** 切回已缓存的端点时，距上次同步超过这个时间才在后台检查新内容 */
+const STALE_MS = 60_000
+
+const DEMO_ENDPOINT: Endpoint = {
+  id: 'demo',
+  kind: 'demo',
+  service: 'miniflux',
+  server: 'demo.album-rss.local',
+  username: 'demo',
+  remember: true,
+}
 
 const DEFAULT_SETTINGS: Settings = {
   autoRead: true,
@@ -57,9 +90,17 @@ const DEFAULT_SETTINGS: Settings = {
   simulateLatency: true,
 }
 
+function readItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
 function readJson<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(key)
+    const raw = readItem(key)
     return raw ? (JSON.parse(raw) as T) : null
   } catch {
     return null
@@ -75,33 +116,64 @@ function newEndpointId() {
   )
 }
 
-function initialState(): AppState {
-  const now = Date.now()
-  const saved = readJson<Session>(SESSION_KEY)
-  const session =
-    saved?.kind === 'demo' || (saved?.kind === 'connected' && saved.token && saved.remember)
-      ? saved
-      : null
-  const endpoints = readJson<Session[]>(ENDPOINTS_KEY) ?? []
-  if (session?.kind === 'connected') {
-    session.id ??= newEndpointId()
-    if (!endpoints.some((endpoint) => endpoint.id === session.id)) endpoints.push(session)
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+function persistEndpoints(endpoints: Endpoint[]) {
+  localStorage.setItem(
+    ENDPOINTS_KEY,
+    JSON.stringify(endpoints.filter((endpoint) => endpoint.remember)),
+  )
+}
+
+/** 读取保存的端点，并迁移旧版本单独保存的连接 */
+function restoreEndpoints(): { endpoints: Endpoint[]; activeId: string | null } {
+  const endpoints = (readJson<Endpoint[]>(ENDPOINTS_KEY) ?? []).filter(
+    (endpoint) => endpoint?.kind === 'connected' && endpoint.token,
+  )
+  endpoints.forEach((endpoint) => (endpoint.id ??= newEndpointId()))
+  let activeId = readItem(ACTIVE_KEY)
+  const legacy = readJson<Partial<Endpoint>>(LEGACY_SESSION_KEY)
+  if (legacy) {
+    if (legacy.kind === 'demo') activeId ??= DEMO_ENDPOINT.id
+    else if (legacy.kind === 'connected' && legacy.token && legacy.remember) {
+      const id = legacy.id ?? newEndpointId()
+      if (!endpoints.some((endpoint) => endpoint.id === id))
+        endpoints.push({ ...legacy, id } as Endpoint)
+      activeId ??= id
+    }
+    localStorage.removeItem(LEGACY_SESSION_KEY)
     persistEndpoints(endpoints)
+    if (activeId) localStorage.setItem(ACTIVE_KEY, activeId)
   }
+  return { endpoints, activeId }
+}
+
+function demoContent(now: number) {
   const demo = createDemoData(now)
   arrivals = demo.arrivals
-  const entries: Record<string, Entry> = {}
-  for (const entry of demo.entries) entries[entry.id] = entry
   return {
-    session,
+    folders: demo.folders,
+    feeds: demo.feeds,
+    entries: Object.fromEntries(demo.entries.map((entry) => [entry.id, entry])),
+    order: demo.entries.map((entry) => entry.id),
+  }
+}
+
+function initialState(): AppState {
+  const now = Date.now()
+  const { endpoints, activeId } = restoreEndpoints()
+  const endpoint =
+    activeId === DEMO_ENDPOINT.id
+      ? DEMO_ENDPOINT
+      : (endpoints.find((item) => item.id === activeId) ?? null)
+  const connected = endpoint?.kind === 'connected'
+  const demo = demoContent(now)
+  return {
+    endpoint,
     endpoints,
-    loaded: session?.kind !== 'connected',
+    loaded: !connected,
     settings: { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>(SETTINGS_KEY) },
-    folders: session?.kind === 'connected' ? [] : demo.folders,
-    feeds: session?.kind === 'connected' ? [] : demo.feeds,
-    entries: session?.kind === 'connected' ? {} : entries,
-    order: session?.kind === 'connected' ? [] : demo.entries.map((e) => e.id),
+    ...(connected ? { folders: [], feeds: [], entries: {}, order: [] } : demo),
+    scopes: {},
+    unread: null,
     sync: { status: 'idle', lastSyncedAt: now - 4 * 60_000, pendingIds: [] },
     listVersion: 0,
     downloads: {},
@@ -117,120 +189,365 @@ configureLatency(() => appStore.get().settings.simulateLatency)
 
 const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
 
-function patchEntries(ids: readonly string[], patch: (entry: Entry) => Entry) {
-  appStore.set((state) => {
-    let changed = false
-    const entries = { ...state.entries }
-    for (const id of ids) {
-      const entry = entries[id]
-      if (!entry) continue
-      const next = patch(entry)
-      if (next !== entry) {
-        entries[id] = next
-        changed = true
-      }
+/** 列表在 store 里的键 */
+export function scopeKey(query: ListQuery): string {
+  return JSON.stringify([query.status, query.feedId ?? null, query.folderId ?? null])
+}
+
+export function queryOfKey(key: string): ListQuery {
+  const [status, feedId, folderId] = JSON.parse(key) as [ListQuery['status'], string?, string?]
+  return { status, feedId: feedId ?? undefined, folderId: folderId ?? undefined }
+}
+
+function entryScope(query: ListQuery) {
+  return {
+    feedId: query.feedId,
+    folderId: query.folderId,
+    unread: query.status === 'unread' || undefined,
+    starred: query.status === 'starred' || undefined,
+  }
+}
+
+/** 正在显示的列表：同步时只刷新它们，其余列表等再次打开时读取 */
+const mounted = new Map<string, { query: ListQuery; count: number }>()
+
+export function retainScope(query: ListQuery): () => void {
+  const key = scopeKey(query)
+  const item = mounted.get(key) ?? { query, count: 0 }
+  item.count++
+  mounted.set(key, item)
+  return () => {
+    item.count--
+    if (item.count <= 0 && mounted.get(key) === item) mounted.delete(key)
+  }
+}
+
+const defaultQuery = (): ListQuery => ({ status: appStore.get().settings.defaultStatus })
+
+function uniqueQueries(queries: ListQuery[]): ListQuery[] {
+  return [...new Map(queries.map((query) => [scopeKey(query), query])).values()]
+}
+
+let scopeToken = 0
+
+function freshScope(query: ListQuery, page: EntryPage): ScopeState {
+  return {
+    query,
+    ids: [...new Set(page.entries.map((entry) => entry.id))],
+    cursor: page.cursor,
+    done: page.cursor === null,
+    loading: false,
+    token: ++scopeToken,
+  }
+}
+
+function sortOrder(entries: Record<string, Entry>): string[] {
+  return Object.values(entries)
+    .sort((a, b) => b.publishedAt - a.publishedAt)
+    .map((entry) => entry.id)
+}
+
+type EntryData = Pick<AppState, 'entries' | 'unread'>
+
+/** 改动文章；已读状态变化时一并调整未读计数 */
+function patchData<T extends EntryData>(
+  data: T,
+  ids: readonly string[],
+  patch: (entry: Entry) => Entry,
+): T {
+  let entries: Record<string, Entry> | null = null
+  let unread: Record<string, number> | null = null
+  for (const id of ids) {
+    const entry = data.entries[id]
+    if (!entry) continue
+    const next = patch(entry)
+    if (next === entry) continue
+    entries ??= { ...data.entries }
+    entries[id] = next
+    if (data.unread && next.read !== entry.read) {
+      unread ??= { ...data.unread }
+      unread[entry.feedId] = Math.max(0, (unread[entry.feedId] ?? 0) + (next.read ? -1 : 1))
     }
-    return changed ? { ...state, entries } : state
+  }
+  return entries ? { ...data, entries, unread: unread ?? data.unread } : data
+}
+
+function patchEntries(ids: readonly string[], patch: (entry: Entry) => Entry) {
+  appStore.set((state) => patchData(state, ids, patch))
+}
+
+/** 每个端点缓存最后一次的数据，切回时立即显示 */
+type EndpointData = Pick<
+  AppState,
+  'folders' | 'feeds' | 'entries' | 'order' | 'scopes' | 'unread'
+> & { lastSyncedAt: number }
+const cache = new Map<string, EndpointData>()
+
+function stash(state: AppState) {
+  const endpoint = state.endpoint
+  if (endpoint?.kind !== 'connected' || !state.loaded) return
+  if (!state.endpoints.some((item) => item.id === endpoint.id)) return
+  cache.set(endpoint.id, {
+    folders: state.folders,
+    feeds: state.feeds,
+    entries: state.entries,
+    order: state.order,
+    scopes: Object.fromEntries(
+      Object.entries(state.scopes).map(([key, scope]) => [
+        key,
+        scope.loading ? { ...scope, loading: false } : scope,
+      ]),
+    ),
+    unread: state.unread,
+    lastSyncedAt: state.sync.lastSyncedAt,
   })
+}
+
+/** 改动某个端点的文章：正在使用时改页面状态，否则改它的缓存 */
+function patchEndpoint(endpointId: string, ids: readonly string[], patch: (entry: Entry) => Entry) {
+  if (appStore.get().endpoint?.id === endpointId) patchEntries(ids, patch)
+  else {
+    const data = cache.get(endpointId)
+    if (data) cache.set(endpointId, patchData(data, ids, patch))
+  }
 }
 
 let generation = 0
 let connectionAttempt = 0
 let mutationTail = Promise.resolve()
 let revision = 0
+/** 未确认的已读、收藏改动，键为 端点\n文章\n字段 */
 const changes = new Map<string, { revision: number; value: boolean }>()
 const confirmed = new Map<string, boolean>()
 const lastChanges = new Map<string, number>()
+/** 后台同步读到的新一页，点“有新图集”时替换对应列表 */
+let pending: { generation: number; scopes: Record<string, ScopeState> } | null = null
 
-function persistEndpoints(endpoints: Session[]) {
-  localStorage.setItem(
-    ENDPOINTS_KEY,
-    JSON.stringify(endpoints.filter((endpoint) => endpoint.remember)),
-  )
+const track = (endpointId: string, entryId: string, field: 'read' | 'starred') =>
+  `${endpointId}\n${entryId}\n${field}`
+
+function forgetTracking(endpointId: string) {
+  for (const map of [changes, confirmed, lastChanges]) {
+    for (const key of map.keys()) if (key.startsWith(`${endpointId}\n`)) map.delete(key)
+  }
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '请求失败，请稍后重试'
 }
 
-function providerFor(session: Session) {
-  return createProvider({
-    service: session.service,
-    server: session.server,
-    token: session.token ?? '',
+/** 每个端点一个适配器，同一端点的请求共用一个队列 */
+const providers = new Map<string, { key: string; provider: Provider }>()
+
+function providerFor(endpoint: Endpoint): Provider {
+  const key = [endpoint.service, endpoint.server, endpoint.token].join('\n')
+  const cached = providers.get(endpoint.id)
+  if (cached?.key === key) return cached.provider
+  const provider = createProvider({
+    service: endpoint.service,
+    server: endpoint.server,
+    token: endpoint.token ?? '',
+    gate: createGate(),
   })
+  providers.set(endpoint.id, { key, provider })
+  return provider
+}
+
+/** 合并服务端返回的文章；本地还没确认的已读、收藏改动优先 */
+function mergeEntries(
+  current: Record<string, Entry>,
+  endpoint: Endpoint,
+  remote: readonly RemoteEntry[],
+  since: number,
+): Record<string, Entry> {
+  const entries = { ...current }
+  for (const item of remote) {
+    const entry = parseEntry(item, endpoint.server, endpoint.mediaOrigin)
+    for (const field of ['read', 'starred'] as const) {
+      const key = track(endpoint.id, entry.id, field)
+      if (changes.has(key) || (lastChanges.get(key) ?? 0) > since)
+        entry[field] = current[entry.id]?.[field] ?? entry[field]
+    }
+    entries[entry.id] = entry
+  }
+  return entries
+}
+
+/** 读取端点的订阅、未读计数和指定列表的第一页 */
+async function loadEndpoint(
+  endpoint: Endpoint,
+  provider: Provider,
+  queries: ListQuery[],
+): Promise<EndpointData> {
+  const since = revision
+  const [pages, subscriptions, unread] = await Promise.all([
+    // 文章页最大，先排进请求队列
+    Promise.all(queries.map((query) => provider.entries(entryScope(query), null, PAGE_SIZE))),
+    provider.subscriptions(),
+    provider.unreadCounts(),
+  ])
+  const entries = mergeEntries(
+    {},
+    endpoint,
+    pages.flatMap((page) => page.entries),
+    since,
+  )
+  return {
+    ...subscriptions,
+    entries,
+    order: sortOrder(entries),
+    scopes: Object.fromEntries(
+      queries.map((query, i) => [scopeKey(query), freshScope(query, pages[i]!)]),
+    ),
+    unread,
+    lastSyncedAt: Date.now(),
+  }
+}
+
+/** 切换到端点：先缓存当前端点的数据，再换上新数据 */
+function activate(endpoint: Endpoint, data: EndpointData) {
+  const state = appStore.get()
+  if (state.endpoint?.id !== endpoint.id) stash(state)
+  cache.delete(endpoint.id)
+  generation++
+  pending = null
+  toastStore.set(() => [])
+  const endpoints = state.endpoints.some((item) => item.id === endpoint.id)
+    ? state.endpoints.map((item) => (item.id === endpoint.id ? endpoint : item))
+    : [...state.endpoints, endpoint]
+  persistEndpoints(endpoints)
+  localStorage.setItem(ACTIVE_KEY, endpoint.id)
+  appStore.set((current) => ({
+    ...current,
+    endpoint,
+    endpoints,
+    loaded: true,
+    folders: data.folders,
+    feeds: data.feeds,
+    entries: data.entries,
+    order: data.order,
+    scopes: data.scopes,
+    unread: data.unread,
+    sync: { status: 'idle', lastSyncedAt: data.lastSyncedAt, pendingIds: [] },
+    downloads: {},
+    refreshingFeeds: {},
+    viewerSequence: null,
+    listVersion: current.listVersion + 1,
+  }))
+}
+
+/** 不再使用任何端点，回到连接页 */
+function deactivate() {
+  connectionAttempt++
+  generation++
+  pending = null
+  toastStore.set(() => [])
+  localStorage.removeItem(ACTIVE_KEY)
+  const demo = demoContent(Date.now())
+  appStore.set((state) => ({
+    ...state,
+    endpoint: null,
+    loaded: true,
+    ...demo,
+    scopes: {},
+    unread: null,
+    downloads: {},
+    refreshingFeeds: {},
+    viewerSequence: null,
+    sync: { status: 'idle', lastSyncedAt: 0, pendingIds: [] },
+    listVersion: state.listVersion + 1,
+  }))
 }
 
 function mutate(ids: readonly string[], field: 'read' | 'starred', value: boolean) {
-  const session = appStore.get().session
-  if (!session || session.kind === 'demo') {
-    patchEntries(ids, (entry) => (entry[field] === value ? entry : { ...entry, [field]: value }))
+  const { endpoint, entries } = appStore.get()
+  const apply = (entry: Entry) => (entry[field] === value ? entry : { ...entry, [field]: value })
+  if (!endpoint || endpoint.kind === 'demo') {
+    patchEntries(ids, apply)
     return
   }
-  const epoch = generation
   const serial = ++revision
   ids.forEach((id) => {
-    const key = `${id}:${field}`
-    if (!changes.has(key)) confirmed.set(key, appStore.get().entries[id]?.[field] ?? false)
+    const key = track(endpoint.id, id, field)
+    if (!changes.has(key)) confirmed.set(key, entries[id]?.[field] ?? false)
     changes.set(key, { revision: serial, value })
     lastChanges.set(key, serial)
   })
-  patchEntries(ids, (entry) => ({ ...entry, [field]: value }))
+  patchEntries(ids, apply)
   mutationTail = mutationTail.then(async () => {
-    if (epoch !== generation) return
     try {
-      const provider = providerFor(session)
+      // 写入属于发起操作的端点：切换端点后照常发送，端点被删除时放弃
+      const target = appStore.get().endpoints.find((item) => item.id === endpoint.id)
+      if (!target) return
+      const provider = providerFor(target)
       if (field === 'read') await provider.setRead(ids, value)
       else for (const id of ids) await provider.setStarred(id, value)
-      if (epoch === generation) ids.forEach((id) => confirmed.set(`${id}:${field}`, value))
+      ids.forEach((id) => confirmed.set(track(endpoint.id, id, field), value))
     } catch (error) {
-      if (epoch !== generation) return
-      patchEntries(ids, (entry) => {
-        const old = confirmed.get(`${entry.id}:${field}`)
-        return changes.get(`${entry.id}:${field}`)?.revision === serial && old !== undefined
+      patchEndpoint(endpoint.id, ids, (entry) => {
+        const key = track(endpoint.id, entry.id, field)
+        const old = confirmed.get(key)
+        return changes.get(key)?.revision === serial && old !== undefined && entry[field] !== old
           ? { ...entry, [field]: old }
           : entry
       })
-      appStore.set((state) => ({ ...state, listVersion: state.listVersion + 1 }))
+      const active = appStore.get().endpoint?.id === endpoint.id
+      if (active) appStore.set((state) => ({ ...state, listVersion: state.listVersion + 1 }))
       showToast({
-        message: '状态未能保存到服务器',
+        message: active ? '状态未能保存到服务器' : `「${endpointLabel(endpoint)}」的状态未能保存`,
         detail: errorMessage(error),
         tone: 'warning',
-        action: { label: '重试', run: () => mutate(ids, field, value) },
+        action: active ? { label: '重试', run: () => mutate(ids, field, value) } : undefined,
       })
     } finally {
-      if (epoch === generation)
-        ids.forEach((id) => {
-          if (changes.get(`${id}:${field}`)?.revision === serial) {
-            changes.delete(`${id}:${field}`)
-            confirmed.delete(`${id}:${field}`)
-          }
-        })
+      ids.forEach((id) => {
+        const key = track(endpoint.id, id, field)
+        if (changes.get(key)?.revision === serial) {
+          changes.delete(key)
+          confirmed.delete(key)
+        }
+      })
     }
   })
+}
+
+/** 同步时要刷新的列表：显式同步刷新正在显示的列表，后台同步只检查浏览页 */
+function syncQueries(state: AppState, explicit: boolean): ListQuery[] {
+  if (!state.loaded) return [defaultQuery()]
+  const valid = (query: ListQuery) =>
+    (!query.feedId || state.feeds.some((feed) => feed.id === query.feedId)) &&
+    (!query.folderId || state.folders.some((folder) => folder.id === query.folderId))
+  const shown = [...mounted.values()].map((item) => item.query).filter(valid)
+  if (explicit) return uniqueQueries(shown.length > 0 ? shown : [defaultQuery()])
+  const browse = shown.filter((query) => !query.feedId && query.status !== 'starred')
+  return uniqueQueries(browse.length > 0 ? browse : [defaultQuery()]).filter(
+    (query) => state.scopes[scopeKey(query)],
+  )
 }
 
 export const actions = {
   enterDemo() {
     connectionAttempt++
-    const endpoints = appStore.get().endpoints
-    const session: Session = {
-      kind: 'demo',
-      service: 'miniflux',
-      server: 'demo.album-rss.local',
-      username: 'demo',
-      remember: true,
-    }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    const state = appStore.get()
+    stash(state)
     generation++
+    pending = null
     toastStore.set(() => [])
-    changes.clear()
-    confirmed.clear()
-    lastChanges.clear()
-    mutationTail = Promise.resolve()
-    appStore.set(() => ({ ...initialState(), endpoints, session, loaded: true }))
+    localStorage.setItem(ACTIVE_KEY, DEMO_ENDPOINT.id)
+    appStore.set(() => ({
+      ...initialState(),
+      endpoints: state.endpoints,
+      endpoint: DEMO_ENDPOINT,
+      loaded: true,
+      listVersion: state.listVersion + 1,
+    }))
   },
 
+  exitDemo() {
+    deactivate()
+  },
+
+  /** 添加或编辑端点：验证凭据、读取第一页，然后切换过去 */
   async connect(input: {
     id?: string
     name?: string
@@ -251,7 +568,7 @@ export const actions = {
       input.service === 'miniflux'
         ? input.apiKey.trim()
         : input.token || (await loginGoogleReader(server, input.username.trim(), input.password))
-    const session: Session = {
+    const endpoint: Endpoint = {
       id: input.id ?? newEndpointId(),
       name: input.name?.trim() || undefined,
       kind: 'connected',
@@ -263,87 +580,61 @@ export const actions = {
       mediaOrigin: input.mediaOrigin ? normalizeServer(input.mediaOrigin) : undefined,
     }
     input.onStep?.(1)
-    const provider = providerFor(session)
+    const provider = providerFor(endpoint)
     const username = await provider.authenticate()
-    if (username) session.username = username
+    if (username) endpoint.username = username
     input.onStep?.(2)
-    const snapshot = await provider.snapshot()
-    const entries = Object.fromEntries(
-      snapshot.entries.map((e) => [e.id, parseEntry(e, server, session.mediaOrigin)]),
-    )
+    const data = await loadEndpoint(endpoint, provider, [defaultQuery()])
     if (attempt !== connectionAttempt) throw new ApiError('连接已取消')
-    generation++
-    toastStore.set(() => [])
-    if (input.remember) localStorage.setItem(SESSION_KEY, JSON.stringify(session))
-    else localStorage.removeItem(SESSION_KEY)
-    const endpoints = appStore.get().endpoints.filter((endpoint) => endpoint.id !== session.id)
-    endpoints.push(session)
-    persistEndpoints(endpoints)
-    changes.clear()
-    confirmed.clear()
-    lastChanges.clear()
-    mutationTail = Promise.resolve()
-    appStore.set((state) => ({
-      ...state,
-      session,
-      endpoints,
-      loaded: true,
-      folders: snapshot.folders,
-      feeds: snapshot.feeds,
-      entries,
-      order: Object.values(entries)
-        .sort((a, b) => b.publishedAt - a.publishedAt)
-        .map((e) => e.id),
-      sync: { status: 'idle', lastSyncedAt: Date.now(), pendingIds: [] },
-      downloads: {},
-      refreshingFeeds: {},
-      viewerSequence: null,
-      listVersion: state.listVersion + 1,
-    }))
+    activate(endpoint, data)
   },
 
-  signOut() {
+  /** 放弃进行中的连接；迟到的结果不会切换端点 */
+  cancelConnect() {
     connectionAttempt++
-    generation++
-    toastStore.set(() => [])
-    changes.clear()
-    confirmed.clear()
-    lastChanges.clear()
-    mutationTail = Promise.resolve()
-    localStorage.removeItem(SESSION_KEY)
-    localStorage.removeItem(ENDPOINTS_KEY)
-    appStore.set((state) => ({
-      ...state,
-      session: null,
-      endpoints: [],
-      loaded: true,
-      folders: [],
-      feeds: [],
-      entries: {},
-      order: [],
-      downloads: {},
-      refreshingFeeds: {},
-      viewerSequence: null,
-      sync: { status: 'idle', lastSyncedAt: 0, pendingIds: [] },
-      listVersion: state.listVersion + 1,
-    }))
   },
 
+  /** 切换端点。访问过的端点直接用缓存，必要时在后台检查新内容 */
   async switchEndpoint(id: string) {
-    const endpoint = appStore.get().endpoints.find((item) => item.id === id)
-    if (!endpoint || endpoint.id === appStore.get().session?.id) return
-    await actions.connect({
-      ...endpoint,
-      apiKey: endpoint.token ?? '',
-      password: '',
-    })
+    const state = appStore.get()
+    const endpoint = state.endpoints.find((item) => item.id === id)
+    if (!endpoint || endpoint.id === state.endpoint?.id) return
+    const attempt = ++connectionAttempt
+    const cached = cache.get(id)
+    if (cached) {
+      activate(endpoint, cached)
+      if (Date.now() - cached.lastSyncedAt > STALE_MS) void actions.sync({ explicit: false })
+      return
+    }
+    const data = await loadEndpoint(endpoint, providerFor(endpoint), [defaultQuery()])
+    if (attempt !== connectionAttempt) throw new ApiError('连接已取消')
+    activate(endpoint, data)
   },
 
-  removeEndpoint(id: string) {
-    if (appStore.get().session?.id === id) return
-    const endpoints = appStore.get().endpoints.filter((endpoint) => endpoint.id !== id)
+  /** 删除端点及其保存的凭据；删除正在使用的端点时切到下一个，没有了就回到连接页 */
+  async removeEndpoint(id: string) {
+    const state = appStore.get()
+    const endpoints = state.endpoints.filter((endpoint) => endpoint.id !== id)
+    cache.delete(id)
+    providers.delete(id)
+    forgetTracking(id)
     persistEndpoints(endpoints)
-    appStore.set((state) => ({ ...state, endpoints }))
+    appStore.set((current) => ({ ...current, endpoints }))
+    if (state.endpoint?.id !== id) return
+    const next = endpoints[0]
+    if (next) {
+      try {
+        await actions.switchEndpoint(next.id)
+        return
+      } catch (error) {
+        showToast({
+          message: `无法连接「${endpointLabel(next)}」`,
+          detail: errorMessage(error),
+          tone: 'warning',
+        })
+      }
+    }
+    deactivate()
   },
 
   updateSettings(patch: Partial<Settings>) {
@@ -375,55 +666,153 @@ export const actions = {
     })
   },
 
+  /** 订阅的全部未读：先向服务端取齐未读文章（含还没加载的），再标为已读，可撤销 */
+  async markFeedRead(feed: Feed) {
+    const state = appStore.get()
+    const endpoint = state.endpoint
+    const label = `「${feed.author}」`
+    if (endpoint?.kind !== 'connected') {
+      actions.markAllRead(
+        state.order.filter((id) => state.entries[id]?.feedId === feed.id),
+        label,
+      )
+      return
+    }
+    const epoch = generation
+    try {
+      const provider = providerFor(endpoint)
+      const ids: string[] = []
+      let cursor: string | null = null
+      do {
+        const since = revision
+        const page: EntryPage = await provider.entries(
+          { feedId: feed.id, unread: true },
+          cursor,
+          500,
+        )
+        if (epoch !== generation) return
+        appStore.set((current) => {
+          const entries = mergeEntries(current.entries, endpoint, page.entries, since)
+          return { ...current, entries, order: sortOrder(entries) }
+        })
+        ids.push(...page.entries.map((entry) => entry.id))
+        cursor = page.cursor
+      } while (cursor)
+      if (ids.length === 0) showToast({ message: `${label}没有未读的图集`, tone: 'success' })
+      else actions.markAllRead(ids, label)
+    } catch (error) {
+      if (epoch === generation)
+        showToast({ message: '标为已读失败', detail: errorMessage(error), tone: 'warning' })
+    }
+  },
+
+  /** 读取列表的下一页（还没读过时读第一页） */
+  async loadMore(query: ListQuery) {
+    const key = scopeKey(query)
+    const state = appStore.get()
+    const endpoint = state.endpoint
+    const scope = state.scopes[key]
+    if (endpoint?.kind !== 'connected' || !state.loaded || scope?.loading || scope?.done) return
+    const epoch = generation
+    const token = scope?.token ?? ++scopeToken
+    const since = revision
+    const setScope = (update: (scope: ScopeState) => ScopeState, merge?: RemoteEntry[]) =>
+      appStore.set((current) => {
+        const existing = current.scopes[key]
+        if (existing && existing.token !== token) return current
+        const next = update(
+          existing ?? { query, ids: [], cursor: null, done: false, loading: false, token },
+        )
+        if (!merge) return { ...current, scopes: { ...current.scopes, [key]: next } }
+        const entries = mergeEntries(current.entries, endpoint, merge, since)
+        return {
+          ...current,
+          entries,
+          order: sortOrder(entries),
+          scopes: { ...current.scopes, [key]: next },
+        }
+      })
+    setScope((current) => ({ ...current, loading: true, error: undefined }))
+    try {
+      const page = await providerFor(endpoint).entries(
+        entryScope(query),
+        scope?.cursor ?? null,
+        PAGE_SIZE,
+      )
+      if (epoch !== generation) return
+      setScope((current) => {
+        const ids = new Set(current.ids)
+        page.entries.forEach((entry) => ids.add(entry.id))
+        return {
+          ...current,
+          ids: [...ids],
+          cursor: page.cursor,
+          done: page.cursor === null,
+          loading: false,
+        }
+      }, page.entries)
+    } catch (error) {
+      if (epoch !== generation) return
+      setScope((current) => ({ ...current, loading: false, error: errorMessage(error) }))
+    }
+  },
+
   /**
-   * 同步。explicit 为用户主动刷新：新内容直接进入列表；
+   * 同步。explicit 为用户主动刷新：重新读取正在显示的列表，新内容直接进入列表；
    * 否则（回到前台等）只记下数量，由用户决定何时放进列表。
    */
   async sync({ explicit }: { explicit: boolean }) {
     if (appStore.get().sync.status === 'syncing') return
     const epoch = generation
     appStore.set((state) => ({ ...state, sync: { ...state.sync, status: 'syncing' } }))
-    const session = appStore.get().session
-    if (session?.kind === 'connected') {
+    const endpoint = appStore.get().endpoint
+    if (endpoint?.kind === 'connected') {
       try {
         await mutationTail
-        const startRevision = revision
-        const snapshot = await providerFor(session).snapshot()
+        const since = revision
+        const queries = syncQueries(appStore.get(), explicit)
+        const provider = providerFor(endpoint)
+        const [pages, subscriptions, unread] = await Promise.all([
+          // 文章页最大，先排进请求队列
+          Promise.all(queries.map((query) => provider.entries(entryScope(query), null, PAGE_SIZE))),
+          provider.subscriptions(),
+          provider.unreadCounts(),
+        ])
         if (epoch !== generation) return
-        const entries = Object.fromEntries(
-          snapshot.entries.map((e) => [e.id, parseEntry(e, session.server, session.mediaOrigin)]),
+        const scopes = Object.fromEntries(
+          queries.map((query, i) => [scopeKey(query), freshScope(query, pages[i]!)]),
         )
-        appStore.set((state) => {
-          for (const entry of Object.values(entries)) {
-            for (const field of ['read', 'starred'] as const) {
-              if (
-                changes.has(`${entry.id}:${field}`) ||
-                (lastChanges.get(`${entry.id}:${field}`) ?? 0) > startRevision
-              ) {
-                entry[field] = state.entries[entry.id]?.[field] ?? entry[field]
-              }
-            }
-          }
-          const fresh = Object.keys(entries).filter((id) => !state.entries[id])
-          return {
-            ...state,
-            loaded: true,
-            entries,
-            folders: snapshot.folders,
-            feeds: snapshot.feeds,
-            order: Object.values(entries)
-              .sort((a, b) => b.publishedAt - a.publishedAt)
-              .map((e) => e.id),
-            sync: {
-              status: 'idle',
-              lastSyncedAt: Date.now(),
-              pendingIds: explicit
-                ? []
-                : [...new Set([...state.sync.pendingIds, ...fresh])].filter((id) => entries[id]),
-            },
-            listVersion: explicit || !state.loaded ? state.listVersion + 1 : state.listVersion,
-          }
-        })
+        const state = appStore.get()
+        const replace = explicit || !state.loaded
+        // 后台同步：新文章只计数，点“有新图集”时再换上这一页
+        const pendingIds = replace
+          ? []
+          : [
+              ...new Set(
+                Object.entries(scopes).flatMap(([key, scope]) => {
+                  const known = new Set(state.scopes[key]?.ids)
+                  return scope.ids.filter((id) => !known.has(id))
+                }),
+              ),
+            ]
+        pending = pendingIds.length > 0 ? { generation, scopes } : null
+        const entries = mergeEntries(
+          state.entries,
+          endpoint,
+          pages.flatMap((page) => page.entries),
+          since,
+        )
+        appStore.set((current) => ({
+          ...current,
+          loaded: true,
+          ...subscriptions,
+          entries,
+          order: sortOrder(entries),
+          unread,
+          scopes: replace ? scopes : current.scopes,
+          sync: { status: 'idle', lastSyncedAt: Date.now(), pendingIds },
+          listVersion: replace ? current.listVersion + 1 : current.listVersion,
+        }))
         if (explicit) showToast({ message: '同步完成', tone: 'success' })
       } catch (error) {
         if (epoch !== generation) return
@@ -467,9 +856,13 @@ export const actions = {
     }
   },
 
+  /** 把后台同步到的新内容放进列表 */
   applyPending() {
+    const scopes = pending?.generation === generation ? pending.scopes : null
+    pending = null
     appStore.set((state) => ({
       ...state,
+      scopes: scopes ?? state.scopes,
       sync: { ...state.sync, pendingIds: [] },
       listVersion: state.listVersion + 1,
     }))
@@ -484,10 +877,10 @@ export const actions = {
         refreshingFeeds: { ...state.refreshingFeeds, [feedId]: value },
       }))
     setRefreshing(true)
-    const session = appStore.get().session
-    if (session?.kind === 'connected') {
+    const endpoint = appStore.get().endpoint
+    if (endpoint?.kind === 'connected') {
       try {
-        const provider = providerFor(session)
+        const provider = providerFor(endpoint)
         if (!provider.refreshFeed)
           throw new ApiError('当前服务不支持手动抓取，请在 RSS 服务中刷新后同步')
         await provider.refreshFeed(feedId)
@@ -548,7 +941,7 @@ export const actions = {
     const total = images.length
     if (total === 0) return
     setState({ status: 'running', done: 0, total })
-    if (appStore.get().session?.kind === 'connected') {
+    if (appStore.get().endpoint?.kind === 'connected') {
       let done = 0
       try {
         for (const image of images) {
@@ -630,7 +1023,7 @@ export const actions = {
 
   resetDemo() {
     localStorage.removeItem(SETTINGS_KEY)
-    const { session, endpoints } = appStore.get()
-    appStore.set(() => ({ ...initialState(), session, endpoints }))
+    const { endpoint, endpoints, listVersion } = appStore.get()
+    appStore.set(() => ({ ...initialState(), endpoint, endpoints, listVersion: listVersion + 1 }))
   },
 }

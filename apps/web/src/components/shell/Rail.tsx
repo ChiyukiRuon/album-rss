@@ -2,20 +2,26 @@ import { NavLink } from 'react-router'
 import { cx } from '../../lib/cx'
 import { feedPath } from '../../lib/paths'
 import { useCategoryLabel, useUnreadCounts } from '../../prototype/selectors'
-import { useApp } from '../../prototype/store'
+import { scopeKey, useApp } from '../../prototype/store'
 import { Avatar } from '../ui/Avatar'
 import { Wordmark } from './Logo'
 import { NAV_ITEMS } from './nav'
-import { EndpointSelect } from './EndpointSelect'
+import { EndpointSwitcher } from '../endpoint/EndpointSwitcher'
 import styles from './Rail.module.css'
+
+const STARRED_KEY = scopeKey({ status: 'starred' })
 
 /** 桌面端左侧导航：四个入口 + 关注的画师 */
 export function Rail() {
   const counts = useUnreadCounts()
   const feeds = useApp((s) => s.feeds)
   const categoryOf = useCategoryLabel()
-  const starred = useApp((s) => Object.values(s.entries).filter((e) => e.starred).length)
-  const session = useApp((s) => s.session)
+  // 收藏按需读取：读完收藏列表之前，已加载的收藏数不代表总数，先不显示
+  const starred = useApp((s) =>
+    s.endpoint?.kind !== 'connected' || s.scopes[STARRED_KEY]?.done
+      ? Object.values(s.entries).filter((e) => e.starred).length
+      : undefined,
+  )
   const pending = useApp((s) => s.sync.pendingIds.length)
 
   const badges: Record<string, number | undefined> = { '/': counts.total, '/starred': starred }
@@ -75,24 +81,7 @@ export function Rail() {
         ))}
       </ul>
 
-      {session && (
-        <div className={styles.account}>
-          <EndpointSelect />
-          <NavLink to="/settings" className={styles.accountInfo}>
-            <span className={styles.accountDot} aria-hidden />
-            <span className={styles.accountText}>
-              <span className={styles.accountServer}>{session.server}</span>
-              <span className={styles.accountKind}>
-                {session.kind === 'demo'
-                  ? '演示数据'
-                  : session.service === 'miniflux'
-                    ? 'Miniflux'
-                    : 'Google Reader'}
-              </span>
-            </span>
-          </NavLink>
-        </div>
-      )}
+      <EndpointSwitcher />
     </nav>
   )
 }
