@@ -22,7 +22,13 @@ export function Avatar({ src, name, size = 20, className }: AvatarProps) {
       aria-hidden
     >
       {showImage ? (
-        <img src={resolved} alt="" onError={() => setFailedSrc(resolved)} />
+        <img
+          src={resolved}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailedSrc(resolved)}
+        />
       ) : (
         Array.from(name)[0]?.toUpperCase()
       )}
