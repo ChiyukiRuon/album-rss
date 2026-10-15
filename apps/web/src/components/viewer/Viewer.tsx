@@ -127,23 +127,29 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
   const flash = (kind: Notice['kind'], target?: Entry) =>
     setNotice({ key: performance.now(), kind, entry: target })
 
+  // 在当前图集里跳转。多于两张的图集向后翻到最后一张时预告下一组，往回翻到第一张时预告上一组；
+  // 一两张的图集翻得快，不再每组都提示
+  const goTo = (i: number) => {
+    if (!entry) return
+    controls.go(entry.id, i)
+    if (count <= 2) return
+    if (i > index && i === count - 1 && nextEntry) flash('next', nextEntry)
+    else if (i < index && i === 0 && prevEntry) flash('prev', prevEntry)
+  }
+
   // 看完当前图集后继续翻页，直接进入相邻的图集
   const next = () => {
     if (!entry) return
-    if (index < count - 1) controls.go(entry.id, index + 1)
-    else if (nextEntry) {
-      controls.go(nextEntry.id, 0)
-      flash('next', nextEntry)
-    } else flash('end')
+    if (index < count - 1) goTo(index + 1)
+    else if (nextEntry) controls.go(nextEntry.id, 0)
+    else flash('end')
   }
 
   const prev = () => {
     if (!entry) return
-    if (index > 0) controls.go(entry.id, index - 1)
-    else if (prevEntry) {
-      controls.go(prevEntry.id, prevEntry.images.length - 1)
-      flash('prev', prevEntry)
-    } else flash('start')
+    if (index > 0) goTo(index - 1)
+    else if (prevEntry) controls.go(prevEntry.id, prevEntry.images.length - 1)
+    else flash('start')
   }
 
   const close = () => controls.close(entryId, index)
@@ -421,17 +427,14 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
                   url={thumb.url}
                   label={`第 ${i + 1} 张`}
                   current={i === index}
-                  onClick={() => controls.go(entry.id, i)}
+                  onClick={() => goTo(i)}
                 />
               ))}
               {nextEntry && (
                 <button
                   type="button"
                   className={styles.nextTile}
-                  onClick={() => {
-                    controls.go(nextEntry.id, 0)
-                    flash('next', nextEntry)
-                  }}
+                  onClick={() => controls.go(nextEntry.id, 0)}
                   aria-label={`下一组：${nextEntry.author}，${nextEntry.images.length} 张`}
                 >
                   <Thumb url={nextEntry.images[0]?.url} />
