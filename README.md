@@ -2,9 +2,9 @@
 
 以图片浏览为主的 RSS 客户端，把订阅文章中的图片整理成图集和瀑布流。
 
-Web 端直接连接你的 Miniflux 或 Google Reader 兼容服务，读取订阅、浏览图片，并将已读和收藏状态同步回服务端。应用本身是纯静态前端，不需要部署额外的业务后端。
+Web 端与原生 iOS 应用都直接连接你的 Miniflux 或 Google Reader 兼容服务，读取订阅、浏览图片，并将已读和收藏状态同步回服务端。两端都不需要部署额外的业务后端。
 
-目前已实现 Web 端；原生 iOS 应用和 Swift 共享模块仍处于规划阶段，尚未创建工程。
+Web 端是纯静态前端；iOS 应用（iOS 18 及以上，适配 iOS 26 的液态玻璃）另外提供本地缓存、离线浏览、离线标记与保存到相册，见下文“iOS 应用”。
 
 ## 功能
 
@@ -51,6 +51,21 @@ Google Reader 兼容服务的地址需要包含实际 API 路径，具体以所�
 - **图片加载与下载**：能显示的图片不一定允许脚本读取。图源禁止跨域读取时，需要打开原图后右键或长按保存；当前不提供独立的图片代理后端。
 - **Miniflux 图片代理**：若通过本机地址连接，而文章中的 `/proxy/` 图片使用另一公开地址，可在连接表单的“服务公开地址”中填写该地址，将图片请求映射到当前服务。
 
+## iOS 应用
+
+工程位于 `apps/ios/AlbumRSS.xcodeproj`，界面使用 SwiftUI，查看器的翻页与缩放使用 UIKit；模型、解析、同步与服务适配放在 `swift/` 下的 Swift Package 中，与 Web 端共用同一组图片提取样例（`contracts/fixtures/media`）。
+
+需要 Xcode 26 或更新版本（当前在 Xcode 27 上开发）。用 Xcode 打开工程，选择 `AlbumRSS` scheme 和任意 iOS 18 及以上的模拟器运行即可；真机运行需要在 Xcode 中为目标选择签名团队。首次打开时 Xcode 会解析固定版本的依赖（GRDB、Nuke、SwiftSoup）。
+
+与 Web 端的不同：
+
+- **凭据**：默认保存在本机钥匙串（仅此设备）；也可以选择只保存在内存中，App 退出后移除。
+- **本地数据**：每个端点的订阅、最近几页文章和待发送的已读、收藏改动保存在本机数据库，启动时先显示本地内容再同步；离线时的标记会在网络恢复后写回服务。
+- **图片**：浏览过的原图缓存在本机（容量上限可在设置中调整），离线时也能查看；下载按钮会把图片保存到相册，不受图源跨域策略限制。
+- **网络**：允许连接 HTTP 和局域网地址；连接局域网服务时，系统会请求“本地网络”权限。
+
+更多说明见 [apps/ios/README.md](apps/ios/README.md)。
+
 ## 开发与验证
 
 项目使用 pnpm workspace，Web 端基于 React、TypeScript 和 Vite，测试使用 Vitest。
@@ -68,7 +83,16 @@ Google Reader 兼容服务的地址需要包含实际 API 路径，具体以所�
 | `pnpm format`                          | 自动格式化代码和文档           |
 | `pnpm --filter @album-rss/web preview` | 本地预览已构建的 Web 应用      |
 
-`scripts/` 中还提供本地 Miniflux 连通性和浏览器验证工具。这些脚本可能依赖特定机器、服务或路径，运行前请先检查配置。
+Swift 与 iOS 部分：
+
+| 命令                                                                                                                              | 用途                               |
+| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `swift test --package-path swift`                                                                                                 | 运行 Swift 模块的单元测试          |
+| `xcodebuild -project apps/ios/AlbumRSS.xcodeproj -scheme AlbumRSS -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build` | 构建 iOS 应用                      |
+| `xcodebuild -project apps/ios/AlbumRSS.xcodeproj -scheme AlbumRSS -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test`  | 运行界面测试（演示数据与本地服务） |
+| `python3 scripts/stub-rss-server.py`                                                                                              | 启动本机的模拟 RSS 服务            |
+
+`scripts/` 中还提供本地 Miniflux 连通性和浏览器验证工具。这些脚本可能依赖特定机器、服务或路径，运行前请先检查配置。`stub-rss-server.py` 只使用 Python 标准库，在 `127.0.0.1:8787` 提供 Miniflux 与 Google Reader 兼容接口和生成的图片，供两端联调与 iOS 界面测试使用，不连接外部网络。
 
 ## 构建与部署
 
@@ -86,15 +110,16 @@ Web 构建产物位于 `apps/web/dist/`，可部署到静态托管服务。应�
 ```text
 apps/
   web/                   React + Vite Web 应用
-  ios/                   原生 iOS 应用说明，尚未创建工程
+  ios/                   iOS 应用（SwiftUI，Xcode 工程与界面测试）
 packages/
   core-ts/               共享文章、订阅和图片模型
   providers-ts/          Miniflux 与 Google Reader 兼容适配器
-contracts/               跨平台 schema 与测试样例占位
-swift/
-  AlbumCore/             Swift 核心模块说明
-  AlbumProviders/        Swift 服务适配模块说明
-scripts/                 本地连接与浏览器验证工具
+contracts/               跨平台样例：图片提取的 golden fixtures
+swift/                   Swift Package
+  AlbumCore/             模型、正文解析、瀑布流计算、本地数据库与同步
+  AlbumProviders/        Miniflux 与 Google Reader 兼容适配器
+  AlbumImages/           图片管线、尺寸测量、演示插画与保存到相册
+scripts/                 本地连接验证工具与模拟 RSS 服务
 ```
 
 ## 许可证
