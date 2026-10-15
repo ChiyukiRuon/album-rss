@@ -49,10 +49,23 @@ export interface RemoteEntry extends Omit<Entry, 'images' | 'paragraphs' | 'pars
   enclosures: { url: string; mimeType: string }[]
 }
 
-export interface Snapshot {
+export interface Subscriptions {
   folders: Folder[]
   feeds: Feed[]
+}
+
+/** 文章列表的查询范围；不带条件即全部订阅的全部文章 */
+export interface EntryScope {
+  feedId?: string
+  folderId?: string
+  unread?: boolean
+  starred?: boolean
+}
+
+/** 一页文章，新的在前；cursor 为 null 表示已经到底 */
+export interface EntryPage {
   entries: RemoteEntry[]
+  cursor: string | null
 }
 
 export function httpUrl(value: string, base?: string): string {
