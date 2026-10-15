@@ -10,6 +10,15 @@ coverage/
 .vite/
 .eslintcache
 
+# Swift Package Manager 与 Xcode 的构建产物和个人设置
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xcresult
+apps/ios/build/
+
 # Local overrides and logs
 *.local
 .env*.local
@@ -24,3 +33,5 @@ Thumbs.db
 
 # Playwright MCP 截图与快照（本地验证产物）
 .playwright-mcp/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

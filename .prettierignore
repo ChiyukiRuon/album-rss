@@ -3,3 +3,7 @@ pnpm-lock.yaml
 
 # 手写的设计与验证文档保持原样，不由格式化工具改写。
 docs/
+
+# Xcode 生成并维护的资源清单与图标描述，保持 Xcode 自己的格式。
+apps/ios/**/*.xcassets/
+apps/ios/**/*.icon/
