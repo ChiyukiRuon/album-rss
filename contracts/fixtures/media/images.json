@@ -1,0 +1,168 @@
+{
+  "description": "图片提取：地址来源的优先级、相对地址、尺寸、去重与过滤",
+  "cases": [
+    {
+      "name": "img 的相对地址按原文地址解析，保留宽高和 alt",
+      "input": {
+        "content": "<p>Hello <b>world</b></p><img src=\"/a.jpg\" width=\"800\" height=\"600\" alt=\"A\">",
+        "url": "https://example.com/posts/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [{ "url": "https://example.com/a.jpg", "width": 800, "height": 600, "alt": "A" }],
+        "paragraphs": ["Hello world"]
+      }
+    },
+    {
+      "name": "没有原文地址时按服务地址解析",
+      "input": {
+        "content": "<img src=\"cover.png\">",
+        "url": "",
+        "server": "https://rss.example.com/sub/"
+      },
+      "expected": {
+        "images": [{ "url": "https://rss.example.com/sub/cover.png" }],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "懒加载属性优先于 src：data-original、data-src、data-lazy-src",
+      "input": {
+        "content": "<img src=\"placeholder.gif\" data-src=\"real.jpg\"><img src=\"p.gif\" data-original=\"orig.jpg\" data-src=\"ignored.jpg\"><img data-lazy-src=\"lazy.jpg\" src=\"p2.gif\">",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [
+          { "url": "https://example.com/p/real.jpg" },
+          { "url": "https://example.com/p/orig.jpg" },
+          { "url": "https://example.com/p/lazy.jpg" }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "srcset 取描述值最大的候选，data-srcset 优先",
+      "input": {
+        "content": "<img src=\"small.jpg\" srcset=\"small.jpg 400w, large.jpg 1200w, medium.jpg 800w\"><img srcset=\"a.jpg 1x, b.jpg 2x\"><img data-srcset=\"c.jpg 300w, d.jpg 600w\" srcset=\"e.jpg 900w\">",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [
+          { "url": "https://example.com/p/large.jpg" },
+          { "url": "https://example.com/p/b.jpg" },
+          { "url": "https://example.com/p/d.jpg" }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "img 没有 srcset 时使用 picture 里第一个带 srcset 的 source",
+      "input": {
+        "content": "<picture><source media=\"(min-width: 800px)\" srcset=\"wide.webp 1600w, narrow.webp 800w\"><source srcset=\"other.jpg\"><img src=\"fallback.jpg\"></picture>",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [{ "url": "https://example.com/p/wide.webp" }],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "重复地址只保留一次；宽高都不超过 2 的追踪像素被过滤，但不影响之后同一地址的图片",
+      "input": {
+        "content": "<img src=\"a.jpg\"><img src=\"a.jpg\"><img src=\"https://example.com/p/a.jpg\"><img src=\"pixel.gif\" width=\"1\" height=\"1\"><img src=\"pixel.gif\"><img src=\"thin.gif\" width=\"1\">",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [
+          { "url": "https://example.com/p/a.jpg" },
+          { "url": "https://example.com/p/pixel.gif" },
+          { "url": "https://example.com/p/thin.gif", "width": 1 }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "附件只取图片类型，排在正文图片之后并参与去重",
+      "input": {
+        "content": "<img src=\"a.jpg\">",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com",
+        "enclosures": [
+          { "url": "https://example.com/p/a.jpg", "mimeType": "image/jpeg" },
+          { "url": "https://example.com/b.png", "mimeType": "image/png" },
+          { "url": "https://example.com/v.mp4", "mimeType": "video/mp4" }
+        ]
+      },
+      "expected": {
+        "images": [
+          { "url": "https://example.com/p/a.jpg" },
+          { "url": "https://example.com/b.png" }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "非 HTTP 地址、带凭据的地址被丢弃；空白的懒加载属性不会退回 src",
+      "input": {
+        "content": "<img src=\"javascript:alert(1)\"><img src=\"data:image/png;base64,AAAA\"><img src=\"https://user:pw@example.com/a.jpg\"><img src=\" \"><img data-src=\" \" src=\"fallback.jpg\">",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "宽高按 Number() 解析：两端空白可以，带单位无效，0 视为未知",
+      "input": {
+        "content": "<img src=\"a.jpg\" width=\" 640 \" height=\"480px\"><img src=\"b.jpg\" width=\"0\" height=\"100\"><img src=\"c.jpg\" width=\"1e3\" height=\"5e2\">",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [
+          { "url": "https://example.com/p/a.jpg", "width": 640 },
+          { "url": "https://example.com/p/b.jpg", "height": 100 },
+          { "url": "https://example.com/p/c.jpg", "width": 1000, "height": 500 }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "相对地址里的点段、反斜杠和空格按浏览器规则处理",
+      "input": {
+        "content": "<img src=\"../img/a b.png\"><img src=\"..\\img\\c.jpg\">",
+        "url": "https://example.com/posts/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [
+          { "url": "https://example.com/img/a%20b.png" },
+          { "url": "https://example.com/img/c.jpg" }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "服务公开地址下的 /proxy/ 图片映射到当前连接的服务，其他图片保持原样",
+      "input": {
+        "content": "<img src=\"https://miniflux.example.com/proxy/abc/aHR0cHM6Ly9pbWcuZXhhbXBsZS5jb20vYS5qcGc=\"><img src=\"https://miniflux.example.com/other.jpg\">",
+        "url": "https://x.example.com/status/1",
+        "server": "http://localhost:8880",
+        "mediaOrigin": "https://miniflux.example.com"
+      },
+      "expected": {
+        "images": [
+          { "url": "http://localhost:8880/proxy/abc/aHR0cHM6Ly9pbWcuZXhhbXBsZS5jb20vYS5qcGc=" },
+          { "url": "https://miniflux.example.com/other.jpg" }
+        ],
+        "paragraphs": []
+      }
+    }
+  ]
+}

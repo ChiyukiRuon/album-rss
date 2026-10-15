@@ -1,0 +1,85 @@
+{
+  "description": "图片说明与正文段落：原始 textContent、被忽略的元素、换行与空白",
+  "cases": [
+    {
+      "name": "alt 为空时取所在 figure 里 figcaption 的文字",
+      "input": {
+        "content": "<figure><img src=\"x.jpg\" alt=\"\"><figcaption>Caption <em>here</em></figcaption></figure>",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [{ "url": "https://example.com/p/x.jpg", "alt": "Caption here" }],
+        "paragraphs": ["Caption here"]
+      }
+    },
+    {
+      "name": "figcaption 的文字保持原样，不裁剪空白",
+      "input": {
+        "content": "<figure>\n  <img src=\"y.jpg\">\n  <figcaption>\n    Line one\n  </figcaption>\n</figure>",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [{ "url": "https://example.com/p/y.jpg", "alt": "\n    Line one\n  " }],
+        "paragraphs": ["Line one"]
+      }
+    },
+    {
+      "name": "script、style、noscript、iframe、svg 里的图片和文字都不算",
+      "input": {
+        "content": "<p>Keep</p><script>var x = \"<img src=s.jpg>\"</script><noscript><img src=\"n.jpg\"></noscript><style>p{}</style><iframe src=\"f.html\"></iframe><svg><text>svg</text><image href=\"i.png\"/></svg><img src=\"ok.jpg\">",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [{ "url": "https://example.com/p/ok.jpg" }],
+        "paragraphs": ["Keep"]
+      }
+    },
+    {
+      "name": "template 的内容不在文档树中",
+      "input": {
+        "content": "<template><img src=\"t.jpg\"><p>Hidden</p></template><p>Shown</p>",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [],
+        "paragraphs": ["Shown"]
+      }
+    },
+    {
+      "name": "br 换行，只有 p、div、li、blockquote、h1–h3、figcaption 末尾补换行；实体解码",
+      "input": {
+        "content": "<div>First line<br>Second &amp; line</div><p>Third<span> part</span></p>Tail text<ul><li>One</li><li>Two</li></ul><h2>Head</h2><blockquote>Quote</blockquote>",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [],
+        "paragraphs": [
+          "First line",
+          "Second & line",
+          "Third part",
+          "Tail textOne",
+          "Two",
+          "Head",
+          "Quote"
+        ]
+      }
+    },
+    {
+      "name": "源码里的换行（含 CRLF）也会分段；首尾的不换行空格被裁掉",
+      "input": {
+        "content": "<p>Line A\nLine B</p><p>One\r\nTwo</p><p>&nbsp;Indented&nbsp;</p>",
+        "url": "https://example.com/p/1",
+        "server": "https://rss.example.com"
+      },
+      "expected": {
+        "images": [],
+        "paragraphs": ["Line A", "Line B", "One", "Two", "Indented"]
+      }
+    }
+  ]
+}
