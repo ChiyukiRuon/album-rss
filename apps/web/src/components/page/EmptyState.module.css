@@ -1,0 +1,49 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 420px;
+  margin: 72px auto;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.badge {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 22px;
+  border-radius: 28px;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 2px 8px rgb(22 22 26 / 10%);
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 750;
+}
+
+.description {
+  margin-top: 8px;
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 22px;
+}

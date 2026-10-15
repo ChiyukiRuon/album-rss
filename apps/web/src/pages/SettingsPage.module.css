@@ -1,0 +1,163 @@
+.page {
+  max-width: 720px;
+  padding-bottom: 24px;
+}
+
+.section {
+  margin-top: 26px;
+}
+
+.section:first-child {
+  margin-top: 8px;
+}
+
+.sectionTitle {
+  margin: 0 4px 10px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 18px;
+}
+
+.row + .row,
+.usage + .row {
+  border-top: 1px solid var(--line);
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowLabel {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.rowDescription {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.rowControl {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+@media (max-width: 599px) {
+  .row {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px;
+  }
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.usage {
+  padding: 18px;
+}
+
+.usageHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.usageValue {
+  font-size: 26px;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+}
+
+.usageLimit {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--paper-2);
+}
+
+.barAuto {
+  background: var(--ink);
+}
+
+.barManual {
+  background: var(--spot);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 10px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatchAuto,
+.swatchManual {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.swatchAuto {
+  background: var(--ink);
+}
+
+.swatchManual {
+  background: var(--spot);
+}
+
+.about {
+  margin: 28px 4px 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}

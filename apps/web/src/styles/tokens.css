@@ -1,0 +1,85 @@
+/*
+ * 设计变量：白纸、墨、网点。
+ * 界面本身只用灰阶，把色彩留给插画；唯一的彩色是印刷品红（spot），
+ * 只标记“属于你”的状态：收藏、未读计数、新内容提示。
+ */
+:root {
+  color-scheme: light;
+
+  --paper: #ffffff;
+  --paper-2: #f5f5f7;
+  --paper-3: #ececf0;
+  --line: #e7e7ec;
+  --tone-bg: #f2f2f5;
+  --tone-dot: #d2d2da;
+
+  --ink: #16161a;
+  --ink-2: #5c5c66;
+  --ink-3: #8e8e98;
+  --on-ink: #ffffff;
+
+  --spot: #e5007e;
+  --spot-soft: #fde8f3;
+  --danger: #c4321b;
+  --danger-soft: #fdeeeb;
+  --ok: #0f8a5f;
+
+  --scrim: rgb(22 22 26 / 56%);
+  --glass: rgb(255 255 255 / 84%);
+  --shadow-pop: 0 12px 32px rgb(22 22 26 / 12%), 0 2px 6px rgb(22 22 26 / 8%);
+
+  /* 查看器始终是深色，不随主题变化 */
+  --viewer-bg: #0d0d0f;
+  --viewer-fg: #f3f3f5;
+  --viewer-fg-2: #a3a3ad;
+  --viewer-surface: rgb(255 255 255 / 8%);
+  --viewer-surface-2: rgb(255 255 255 / 15%);
+  --viewer-line: rgb(255 255 255 / 12%);
+
+  /* Latin 与数字用 Mona Sans，中日文交给系统字体 */
+  --font-ui:
+    'Mona Sans Variable', system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 30px;
+
+  --radius-card: 14px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --rail-w: 240px;
+  --tabbar-h: 58px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #111114;
+  --paper-2: #1b1b20;
+  --paper-3: #24242a;
+  --line: #2a2a31;
+  --tone-bg: #19191e;
+  --tone-dot: #33333b;
+
+  --ink: #f1f1f4;
+  --ink-2: #a9a9b3;
+  --ink-3: #74747e;
+  --on-ink: #111114;
+
+  --spot: #ff3d9e;
+  --spot-soft: #3a1229;
+  --danger: #ff6b55;
+  --danger-soft: #3a1a15;
+  --ok: #3ccf94;
+
+  --scrim: rgb(0 0 0 / 60%);
+  --glass: rgb(17 17 20 / 84%);
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 50%), 0 2px 6px rgb(0 0 0 / 40%);
+}

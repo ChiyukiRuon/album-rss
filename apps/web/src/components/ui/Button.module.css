@@ -1,0 +1,153 @@
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: var(--text-sm);
+}
+
+.md {
+  height: 38px;
+  padding: 0 16px;
+  font-size: var(--text-md);
+}
+
+.lg {
+  height: 46px;
+  padding: 0 22px;
+  font-size: var(--text-lg);
+}
+
+.primary {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.primary:hover:not(:disabled) {
+  opacity: 0.86;
+}
+
+.secondary {
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.danger {
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
+.iconButton {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-2);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.iconButton:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.icon-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+}
+
+.icon-md {
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+}
+
+.icon-lg {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+}
+
+.icon-ghost:hover:not(:disabled) {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.icon-outline {
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+.icon-outline:hover:not(:disabled) {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+/* 压在图片上的按钮 */
+.icon-glass {
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+  color: #16161a;
+  backdrop-filter: blur(8px);
+}
+
+.icon-glass:hover:not(:disabled) {
+  background: #fff;
+}
+
+.icon-viewer {
+  color: var(--viewer-fg);
+}
+
+.icon-viewer:hover:not(:disabled) {
+  background: var(--viewer-surface-2);
+}
+
+.icon-viewer:focus-visible {
+  outline-color: var(--viewer-fg);
+}

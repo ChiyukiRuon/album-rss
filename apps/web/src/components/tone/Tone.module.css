@@ -1,0 +1,50 @@
+.tone {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--tone-bg);
+}
+
+/* 两层 45° 点阵：大点集中在左上，小点在中段，右下留白，形成渐变网点 */
+.tone::before,
+.tone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-size: 9px 9px;
+  background-position:
+    0 0,
+    4.5px 4.5px;
+}
+
+.tone::before {
+  background-image:
+    radial-gradient(circle, var(--tone-dot) 1.6px, transparent 2.1px),
+    radial-gradient(circle, var(--tone-dot) 1.6px, transparent 2.1px);
+  mask-image: linear-gradient(155deg, #000 0%, rgb(0 0 0 / 70%) 22%, transparent 55%);
+}
+
+.tone::after {
+  background-image:
+    radial-gradient(circle, var(--tone-dot) 0.9px, transparent 1.3px),
+    radial-gradient(circle, var(--tone-dot) 0.9px, transparent 1.3px);
+  mask-image: linear-gradient(155deg, transparent 25%, #000 52%, transparent 88%);
+}
+
+.loading::before,
+.loading::after {
+  mask-size: 260% 260%;
+  animation: sweep 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes sweep {
+  from {
+    mask-position: 0% 0%;
+  }
+
+  to {
+    mask-position: 100% 100%;
+  }
+}

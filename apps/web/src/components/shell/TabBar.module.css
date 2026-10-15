@@ -1,0 +1,55 @@
+.bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: none;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--line);
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(1.4);
+}
+
+@media (max-width: 899px) {
+  .bar {
+    display: flex;
+  }
+}
+
+.tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--ink-3);
+}
+
+.active {
+  color: var(--ink);
+}
+
+.iconWrap {
+  position: relative;
+  font-size: 24px;
+  line-height: 0;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dot {
+  position: absolute;
+  top: -1px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--spot);
+}

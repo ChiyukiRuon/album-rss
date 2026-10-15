@@ -1,0 +1,5 @@
+# Prettier 也会读取 .gitignore；这里只列额外需要跳过的内容。
+pnpm-lock.yaml
+
+# 手写的设计与验证文档保持原样，不由格式化工具改写。
+docs/

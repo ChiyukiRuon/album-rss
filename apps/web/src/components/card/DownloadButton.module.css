@@ -1,0 +1,27 @@
+.ring {
+  transform: rotate(-90deg);
+}
+
+.track,
+.bar {
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.track {
+  stroke: var(--paper-3);
+}
+
+.bar {
+  stroke: currentColor;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 200ms ease;
+}
+
+.done {
+  color: var(--ok);
+}
+
+.blocked {
+  color: var(--ink-3);
+}

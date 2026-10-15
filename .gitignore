@@ -1,0 +1,26 @@
+.local-check/
+__pycache__/
+
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+.vite/
+.eslintcache
+
+# Local overrides and logs
+*.local
+.env*.local
+*.log
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Playwright MCP 截图与快照（本地验证产物）
+.playwright-mcp/

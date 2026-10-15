@@ -1,0 +1,167 @@
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 599px) {
+  .hideNarrow {
+    display: none;
+  }
+}
+
+.divider {
+  flex: none;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.chipCount {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+@media (max-width: 899px) {
+  .chips {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .chip {
+    max-width: 100%;
+    height: auto;
+    min-height: 32px;
+    padding-block: 5px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .divider {
+    display: none;
+  }
+}
+
+.pillDock {
+  position: sticky;
+  top: 66px;
+  z-index: 11;
+  display: flex;
+  justify-content: center;
+  height: 0;
+}
+
+.newPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--spot);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--spot) 35%, transparent);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  animation: drop 260ms var(--ease-out);
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.headerAvatar {
+  flex: none;
+  box-shadow:
+    0 0 0 4px var(--paper),
+    0 0 0 5px var(--line);
+}
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--danger-soft);
+  color: var(--ink);
+}
+
+.bannerIcon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--danger);
+  font-size: 20px;
+}
+
+.bannerBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.bannerTitle {
+  font-weight: 650;
+}
+
+.bannerText {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.headerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.headerLink:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

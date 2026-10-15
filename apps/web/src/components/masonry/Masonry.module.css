@@ -1,0 +1,37 @@
+.wall {
+  position: relative;
+  contain: layout;
+}
+
+.slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.skeletonMedia {
+  border-radius: var(--radius-card);
+}
+
+.skeletonFooter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--card-footer);
+  padding: 0 4px;
+}
+
+.skeletonAvatar {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--paper-2);
+}
+
+.skeletonLine {
+  width: 46%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--paper-2);
+}

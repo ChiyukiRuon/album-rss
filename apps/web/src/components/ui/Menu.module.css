@@ -1,0 +1,79 @@
+.wrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
+  animation: drop 140ms var(--ease-out);
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-md);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.item svg {
+  color: var(--ink-2);
+  font-size: 18px;
+}
+
+.item:hover,
+.item:focus-visible {
+  outline: none;
+  background: var(--paper-2);
+}
+
+/* 查看器在窄屏上把按钮放在底部，菜单向上展开 */
+@media (max-width: 599px) {
+  .dark {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+}
+
+.dark {
+  border-color: var(--viewer-line);
+  background: #1d1d22;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 50%);
+}
+
+.dark .item {
+  color: var(--viewer-fg);
+}
+
+.dark .item svg {
+  color: var(--viewer-fg-2);
+}
+
+.dark .item:hover,
+.dark .item:focus-visible {
+  background: var(--viewer-surface-2);
+}

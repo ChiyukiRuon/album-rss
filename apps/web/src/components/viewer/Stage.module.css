@@ -1,0 +1,98 @@
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.zoomed {
+  cursor: grab;
+}
+
+.grabbing {
+  cursor: grabbing;
+}
+
+/* 图片适应的区域：上下留出工具栏和缩略图条的位置 */
+.frame {
+  position: absolute;
+  inset: 68px 88px 96px;
+  display: grid;
+  place-items: center;
+  transition:
+    transform 220ms var(--ease-out),
+    opacity 220ms ease;
+}
+
+.dragging {
+  transition: none;
+}
+
+@media (max-width: 899px) {
+  .frame {
+    inset: 60px 0 92px;
+  }
+}
+
+/* 窄屏底部还有一行操作按钮 */
+@media (max-width: 599px) {
+  .frame {
+    inset: 56px 0 148px;
+  }
+}
+
+.image {
+  grid-area: 1 / 1;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center;
+  view-transition-name: album-hero;
+}
+
+.smooth {
+  transition: transform 220ms var(--ease-out);
+}
+
+.placeholder {
+  grid-area: 1 / 1;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 340px;
+  color: var(--viewer-fg);
+  text-align: center;
+}
+
+.errorIcon {
+  margin-bottom: 12px;
+  color: var(--viewer-fg-2);
+  font-size: 40px;
+}
+
+.errorTitle {
+  font-size: var(--text-lg);
+  font-weight: 650;
+}
+
+.errorHint {
+  margin-top: 6px;
+  color: var(--viewer-fg-2);
+  font-size: var(--text-sm);
+}
+
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}

@@ -1,0 +1,23 @@
+.control {
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--text-sm);
+}
+
+.select {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  text-overflow: ellipsis;
+}
+
+.error {
+  margin-top: 6px;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
