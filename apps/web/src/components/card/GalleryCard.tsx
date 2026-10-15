@@ -1,6 +1,7 @@
 import {
   ArrowClockwiseIcon,
   ArrowSquareOutIcon,
+  CheckIcon,
   HourglassSimpleIcon,
   ImageBrokenIcon,
   StackIcon,
@@ -11,6 +12,7 @@ import type { MouseEvent } from 'react'
 import { Link } from 'react-router'
 import { cx } from '../../lib/cx'
 import { feedPath } from '../../lib/paths'
+import { actions } from '../../prototype/store'
 import type { Entry, Feed, ImageAsset } from '../../prototype/types'
 import type { TileInfo } from '../masonry/Masonry'
 import { Tone } from '../tone/Tone'
@@ -180,16 +182,26 @@ function CoverMedia({ entry, image, index, single, author, info, href, onOpen }:
         ) : null}
         {info.long && status !== 'error' && <span className={styles.badge}>长图</span>}
       </span>
-      {status === 'error' && (
+      {/* 右下角：悬停时出现的已读开关，已读时为深色；加载失败时右边是重新加载 */}
+      <span className={styles.corner}>
         <IconButton
-          className={styles.retry}
-          label="重新加载图片"
-          icon={<ArrowClockwiseIcon aria-hidden />}
+          className={cx(styles.read, entry.read && styles.readOn)}
+          label={entry.read ? '标为未读' : '标为已读'}
+          icon={<CheckIcon weight="bold" aria-hidden />}
           variant="glass"
           size="sm"
-          onClick={retry}
+          onClick={() => actions.setRead([entry.id], !entry.read)}
         />
-      )}
+        {status === 'error' && (
+          <IconButton
+            label="重新加载图片"
+            icon={<ArrowClockwiseIcon aria-hidden />}
+            variant="glass"
+            size="sm"
+            onClick={retry}
+          />
+        )}
+      </span>
     </div>
   )
 }

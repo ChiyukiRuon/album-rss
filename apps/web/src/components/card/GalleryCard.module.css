@@ -83,7 +83,8 @@
 
 .hoverTitle {
   position: absolute;
-  right: 12px;
+  /* 给右下角的已读按钮让出位置 */
+  right: 46px;
   bottom: 10px;
   left: 12px;
   z-index: 1;
@@ -173,10 +174,45 @@
   font-size: 14px;
 }
 
-.retry {
+/* 右下角：已读开关与重新加载按钮 */
+.corner {
   position: absolute;
   right: 8px;
   bottom: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+/* 已读开关只在悬停或键盘聚焦时出现；触屏没有悬停，不显示（打开图集会自动标已读） */
+.read {
+  opacity: 0;
+  transition:
+    opacity 160ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+@media (hover: hover) {
+  .mediaWrap:hover .read {
+    opacity: 1;
+  }
+}
+
+.mediaWrap:has(:focus-visible) .read {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .read {
+    display: none;
+  }
+}
+
+.corner .readOn,
+.corner .readOn:hover:not(:disabled) {
+  background: rgb(22 22 26 / 88%);
+  color: #fff;
 }
 
 .meta {
