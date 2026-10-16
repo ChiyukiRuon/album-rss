@@ -341,7 +341,7 @@ struct EntryWall<Header: View, Empty: View>: View {
     if let first = firstUnplaced {
       let target = max(first + (nearEnd ? windowSize + metrics.columns : 1), focusPosition >= 0 ? focusPosition + metrics.columns * 2 : 0)
       layout.probeURLs = shown[first..<min(shown.count, target)].compactMap { item in
-        guard let cover = item.cover, cover.width == nil || cover.height == nil else { return nil }
+        guard let cover = item.cover, !cover.isVideo, cover.width == nil || cover.height == nil else { return nil }
         return cover.url
       }
     }

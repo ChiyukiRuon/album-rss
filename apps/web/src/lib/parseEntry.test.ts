@@ -13,7 +13,14 @@ interface MediaCase {
     enclosures?: { url: string; mimeType: string }[]
   }
   expected: {
-    images: { url: string; width?: number; height?: number; alt?: string }[]
+    images: {
+      url: string
+      width?: number
+      height?: number
+      alt?: string
+      kind?: string
+      poster?: string
+    }[]
     paragraphs: string[]
   }
 }
@@ -49,7 +56,14 @@ describe('parseEntry 跨端样例', () => {
     }
     const entry = parseEntry(remote, fixture.input.server, fixture.input.mediaOrigin ?? undefined)
     expect(
-      entry.images.map(({ url, width, height, alt }) => ({ url, width, height, alt })),
+      entry.images.map(({ url, width, height, alt, kind, poster }) => ({
+        url,
+        width,
+        height,
+        alt,
+        kind,
+        poster,
+      })),
     ).toEqual(fixture.expected.images)
     expect(entry.images.every((image) => image.key === image.url)).toBe(true)
     expect(entry.paragraphs).toEqual(fixture.expected.paragraphs)

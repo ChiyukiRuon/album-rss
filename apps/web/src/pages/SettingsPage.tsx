@@ -104,6 +104,38 @@ export function SettingsPage() {
           </Row>
         </Section>
 
+        <Section title="视频播放">
+          <Row label="播放结束后" description="选择视频播完后的行为">
+            <Segmented
+              label="播放结束后"
+              size="sm"
+              value={settings.videoEndBehavior}
+              onChange={(videoEndBehavior) => actions.updateSettings({ videoEndBehavior })}
+              options={[
+                { value: 'loop', label: '循环播放' },
+                { value: 'pause', label: '播完暂停' },
+                { value: 'nextGroup', label: '播完切换' },
+              ]}
+            />
+          </Row>
+          <SwitchRow
+            label="打开视频时自动播放"
+            description="进入查看器或翻到视频时自动播放；浏览器可能要求手动点击播放。"
+            checked={settings.videoAutoplay}
+            onChange={(videoAutoplay) => actions.updateSettings({ videoAutoplay })}
+          />
+          {settings.videoAutoplay && (
+            <SwitchRow
+              label="使用数据流量时自动播放"
+              description="关闭后，仅在确认使用 Wi-Fi 或有线网络时自动播放；无法识别网络类型时需手动播放。"
+              checked={settings.videoAutoplayCellular}
+              onChange={(videoAutoplayCellular) =>
+                actions.updateSettings({ videoAutoplayCellular })
+              }
+            />
+          )}
+        </Section>
+
         <Section title="外观">
           <Row label="主题" description="查看器始终使用深色背景。">
             <Segmented

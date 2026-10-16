@@ -81,6 +81,9 @@ const DEMO_ENDPOINT: Endpoint = {
 }
 
 const DEFAULT_SETTINGS: Settings = {
+  videoEndBehavior: 'pause',
+  videoAutoplay: false,
+  videoAutoplayCellular: false,
   autoRead: true,
   downloadRead: true,
   showImageless: false,
@@ -927,6 +930,8 @@ export const actions = {
    * fallback 是读取被拒时提示里的操作，默认打开原图。
    */
   async download(key: string, entry: Entry, images: ImageAsset[], fallback?: ToastAction) {
+    images = images.filter((image) => image.kind !== 'video')
+    if (!images.length) return
     const epoch = generation
     const current = appStore.get().downloads[key]
     if (current?.status === 'running') return

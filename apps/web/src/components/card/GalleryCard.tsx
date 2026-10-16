@@ -18,6 +18,7 @@ import type { TileInfo } from '../masonry/Masonry'
 import { Tone } from '../tone/Tone'
 import { Avatar } from '../ui/Avatar'
 import { IconButton } from '../ui/Button'
+import { ImageThumb } from '../ui/ImageThumb'
 import { cardKeyOf } from './cardKey'
 import { DownloadButton } from './DownloadButton'
 import { useCardImage } from './useCardImage'
@@ -66,7 +67,59 @@ export function GalleryCard({
       aria-posinset={info.position}
       aria-setsize={setSize}
     >
-      {image ? (
+      {image?.kind === 'video' ? (
+        <div className={styles.mediaWrap} style={{ height: info.mediaHeight }}>
+          <a
+            className={styles.media}
+            href={href}
+            onClick={(event) => {
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return
+              event.preventDefault()
+              onOpen({ entry, index }, null)
+            }}
+            aria-label={`播放视频：${entry.title}`}
+          >
+            <Tone className={styles.fill} />
+            {image.poster && (
+              <ImageThumb url={image.poster} className={cx(styles.image, styles.loaded)} lazy />
+            )}
+            <span className={styles.videoPlay} aria-hidden>
+              ▶
+            </span>
+            {entry.title && <span className={styles.hoverTitle}>{entry.title}</span>}
+          </a>
+          {entry.starred && (
+            <span className={styles.star} title="已收藏">
+              <StarIcon weight="fill" aria-hidden />
+            </span>
+          )}
+          <span className={cx(styles.badges, entry.starred && styles.besideStar)} aria-hidden>
+            <span className={styles.badge}>视频</span>
+            {entry.images.length > 1 && (
+              <span className={styles.badge}>
+                {imageIndex === null ? entry.images.length : `${index + 1}/${entry.images.length}`}
+              </span>
+            )}
+          </span>
+          <span className={styles.corner}>
+            <IconButton
+              className={cx(styles.read, entry.read && styles.readOn)}
+              label={entry.read ? '标为未读' : '标为已读'}
+              icon={<CheckIcon weight="bold" aria-hidden />}
+              variant="glass"
+              size="sm"
+              onClick={() => actions.setRead([entry.id], !entry.read)}
+            />
+          </span>
+        </div>
+      ) : image ? (
         <CoverMedia
           entry={entry}
           image={image}

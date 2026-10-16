@@ -435,6 +435,18 @@ describe('download read setting', () => {
     await vi.waitFor(() => expect(mocks.setRead).toHaveBeenCalledWith(['1'], true))
   })
 
+  it('excludes videos from image downloads and does not mark video-only requests read', async () => {
+    const { actions, appStore, entry, images } = await setup()
+    const video = { key: 'video', url: 'https://example.com/video.mp4', kind: 'video' as const }
+    await actions.download('video', entry, [video])
+    expect(fetch).not.toHaveBeenCalled()
+    expect(appStore.get().entries['1']?.read).toBe(false)
+    expect(appStore.get().downloads.video).toBeUndefined()
+    await actions.download('mixed', entry, [...images, video])
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(appStore.get().downloads.mixed).toMatchObject({ total: 1, done: 1 })
+  })
+
   it('persists the disabled preference and leaves successful downloads unread', async () => {
     const { actions, appStore, entry, images } = await setup()
     actions.updateSettings({ downloadRead: false })

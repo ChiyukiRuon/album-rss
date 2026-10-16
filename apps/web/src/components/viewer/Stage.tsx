@@ -8,6 +8,8 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { useVideoAutoplay } from '../../lib/videoAutoplay'
+import { useApp } from '../../prototype/store'
 import { cx } from '../../lib/cx'
 import { getLoadedSize, recordLoadedSize } from '../../lib/imageProbe'
 import { openImage, useImageSrc } from '../../lib/imageSource'
@@ -23,6 +25,8 @@ interface StageProps {
   onShown: () => void
   onPrev: () => void
   onNext: () => void
+  /** 播完切换按组跳转，不使用组内翻页 */
+  onNextGroup?: () => void
   /** 触屏下滑关闭 */
   onDismiss: () => void
   /** 触屏单击：显示 / 隐藏界面 */
@@ -57,7 +61,63 @@ const IDENTITY: View = { scale: 1, x: 0, y: 0 }
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y)
 
-export function Stage({ image, entryUrl, onShown, onPrev, onNext, onDismiss, onTap }: StageProps) {
+export function Stage(props: StageProps) {
+  return props.image.kind === 'video' ? <VideoStage {...props} /> : <ImageStage {...props} />
+}
+
+function VideoStage({ image, entryUrl, onShown, onNextGroup }: StageProps) {
+  const [failed, setFailed] = useState(false)
+  const settings = useApp((state) => state.settings)
+  const autoplay = useVideoAutoplay(settings.videoAutoplay, settings.videoAutoplayCellular)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const video = videoRef.current
+    if (!autoplay || !video) return
+    // 自动播放被浏览器拦截时，保留系统播放按钮。
+    void video.play().catch(() => undefined)
+    return () => video.pause()
+  }, [autoplay])
+  return (
+    <div className={styles.stage} style={{ display: 'grid', placeItems: 'center' }}>
+      {failed ? (
+        <div role="alert">
+          <p>视频无法播放，可能是格式不受支持或源站限制。</p>
+          <a href={image.url} target="_blank" rel="noopener noreferrer">
+            打开视频
+          </a>
+          {' · '}
+          <a href={entryUrl} target="_blank" rel="noopener noreferrer">
+            查看原文
+          </a>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          src={image.url}
+          poster={image.poster}
+          controls
+          playsInline
+          loop={settings.videoEndBehavior === 'loop'}
+          onEnded={() => {
+            if (settings.videoEndBehavior === 'nextGroup') onNextGroup?.()
+          }}
+          preload="metadata"
+          aria-label="视频播放器"
+          onPlaying={onShown}
+          onError={() => setFailed(true)}
+          style={{
+            width: '100%',
+            height: '100%',
+            maxHeight: 'calc(100dvh - 240px)',
+            objectFit: 'contain',
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ImageStage({ image, entryUrl, onShown, onPrev, onNext, onDismiss, onTap }: StageProps) {
   const src = useImageSrc(image.url)
   const [attempt, setAttempt] = useState(0)
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading')

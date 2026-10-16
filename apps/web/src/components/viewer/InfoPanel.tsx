@@ -72,8 +72,11 @@ export function InfoPanel({ entry, feed, category, image, index, onClose }: Info
             <dd>{feed?.title ?? '未知订阅'}</dd>
           </div>
           <div>
-            <dt>图片</dt>
-            <dd>{entry.images.length} 张</dd>
+            <dt>媒体</dt>
+            <dd>
+              {entry.images.filter((asset) => asset.kind !== 'video').length} 张图片 ·{' '}
+              {entry.images.filter((asset) => asset.kind === 'video').length} 个视频
+            </dd>
           </div>
         </dl>
       </div>

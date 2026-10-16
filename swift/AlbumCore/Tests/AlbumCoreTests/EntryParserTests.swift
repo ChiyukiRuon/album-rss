@@ -18,6 +18,8 @@ struct MediaCase: Decodable, Sendable, CustomTestStringConvertible {
     let width: Double?
     let height: Double?
     let alt: String?
+    let kind: String?
+    let poster: String?
   }
 
   struct Expected: Decodable, Sendable {
@@ -63,7 +65,7 @@ struct MediaCase: Decodable, Sendable, CustomTestStringConvertible {
       enclosures: fixture.input.enclosures ?? []
     )
     let entry = EntryParser.parse(remote, server: fixture.input.server, mediaOrigin: fixture.input.mediaOrigin)
-    let images = entry.images.map { MediaCase.Image(url: $0.url, width: $0.width, height: $0.height, alt: $0.alt) }
+    let images = entry.images.map { MediaCase.Image(url: $0.url, width: $0.width, height: $0.height, alt: $0.alt, kind: $0.kind, poster: $0.poster) }
     #expect(images == fixture.expected.images)
     #expect(entry.images.allSatisfy { $0.key == $0.url })
     #expect(entry.paragraphs == fixture.expected.paragraphs)

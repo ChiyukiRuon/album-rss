@@ -19,7 +19,10 @@ export interface Feed {
   parsingError?: string
 }
 
+/** 兼容旧缓存：未指定 kind 时视为图片；images 保留为媒体列表字段名。 */
 export interface ImageAsset {
+  kind?: 'video'
+  poster?: string
   key: string
   url: string
   width?: number

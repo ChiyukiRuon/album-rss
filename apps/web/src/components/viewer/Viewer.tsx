@@ -91,10 +91,11 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
 
   // 预取前后各一张，换图时放弃旧的预取
   const neighbors = [
-    entry?.images[index + 1]?.url ?? nextEntry?.images[0]?.url,
-    entry?.images[index - 1]?.url ?? prevEntry?.images.at(-1)?.url,
+    entry?.images[index + 1] ?? nextEntry?.images[0],
+    entry?.images[index - 1] ?? prevEntry?.images.at(-1),
   ]
-    .filter(Boolean)
+    .filter((asset) => asset && asset.kind !== 'video')
+    .map((asset) => asset?.url)
     .join('\n')
   useEffect(() => {
     if (!neighbors) return
@@ -188,6 +189,7 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
   const onKey = useEffectEvent((event: KeyboardEvent) => {
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return
     if ((event.target as HTMLElement).closest('input, textarea, [contenteditable="true"]')) return
+    if ((event.target as HTMLElement).closest('video') && event.key !== 'Escape') return
     switch (event.key) {
       case 'ArrowRight':
       case 'PageDown':
@@ -258,9 +260,12 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
 
   const menuItems = [
     {
-      label: '打开原图',
+      label: image.kind === 'video' ? '打开视频' : '打开原图',
       icon: <ArrowSquareOutIcon aria-hidden />,
-      onSelect: () => void openImage(image.url),
+      onSelect: () =>
+        image.kind === 'video'
+          ? window.open(image.url, '_blank', 'noopener,noreferrer')
+          : void openImage(image.url),
     },
     {
       label: '查看原文',
@@ -268,12 +273,12 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
       onSelect: () => window.open(entry.url, '_blank', 'noopener,noreferrer'),
     },
     {
-      label: '复制图片地址',
+      label: '复制媒体地址',
       icon: <LinkIcon aria-hidden />,
       onSelect: () =>
         void navigator.clipboard
           .writeText(image.url)
-          .then(() => showToast({ message: '已复制图片地址', tone: 'success' }))
+          .then(() => showToast({ message: '已复制媒体地址', tone: 'success' }))
           .catch(() => showToast({ message: '无法访问剪贴板', tone: 'warning' })),
     },
     {
@@ -293,7 +298,7 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
   return (
     <div
       ref={rootRef}
-      className={cx(styles.viewer, chromeHidden && styles.chromeHidden)}
+      className={cx(styles.viewer, chromeHidden && image.kind !== 'video' && styles.chromeHidden)}
       data-viewer-root
       role="dialog"
       aria-modal="true"
@@ -309,6 +314,9 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
           onShown={() => markShown(entry.id)}
           onPrev={prev}
           onNext={next}
+          onNextGroup={() => {
+            if (nextEntry) controls.go(nextEntry.id, 0)
+          }}
           onDismiss={close}
           onTap={() => setChromeHidden((hidden) => !hidden)}
         />
@@ -424,8 +432,9 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
               {entry.images.map((thumb, i) => (
                 <ThumbButton
                   key={thumb.key}
-                  url={thumb.url}
-                  label={`第 ${i + 1} 张`}
+                  url={thumb.kind === 'video' ? thumb.poster : thumb.url}
+                  label={thumb.kind === 'video' ? `第 ${i + 1} 项：视频` : `第 ${i + 1} 张`}
+                  video={thumb.kind === 'video'}
                   current={i === index}
                   onClick={() => goTo(i)}
                 />
@@ -437,7 +446,13 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
                   onClick={() => controls.go(nextEntry.id, 0)}
                   aria-label={`下一组：${nextEntry.author}，${nextEntry.images.length} 张`}
                 >
-                  <Thumb url={nextEntry.images[0]?.url} />
+                  <Thumb
+                    url={
+                      nextEntry.images[0]?.kind === 'video'
+                        ? nextEntry.images[0]?.poster
+                        : nextEntry.images[0]?.url
+                    }
+                  />
                   <span className={styles.nextText}>
                     <span className={styles.nextLabel}>下一组</span>
                     <span className={styles.nextAuthor}>{nextEntry.author}</span>
@@ -497,11 +512,13 @@ function ThumbButton({
   url,
   label,
   current,
+  video,
   onClick,
 }: {
-  url: string
+  url: string | undefined
   label: string
   current: boolean
+  video?: boolean
   onClick: () => void
 }) {
   return (
@@ -513,6 +530,11 @@ function ThumbButton({
       onClick={onClick}
     >
       <Thumb url={url} />
+      {video && (
+        <span className={styles.videoMarker} aria-hidden>
+          ▶
+        </span>
+      )}
     </button>
   )
 }

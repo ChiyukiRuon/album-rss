@@ -56,6 +56,8 @@ let lastWidth = 0
 
 function resolveTile(cover: ImageAsset | null): ResolvedTile | null {
   if (!cover) return TEXT_TILE
+  if (cover.kind === 'video')
+    return { ...displayRatio(cover.width || 16, cover.height || 9), failed: false }
   if (cover.width && cover.height)
     return { ...displayRatio(cover.width, cover.height), failed: false }
   const result = getProbe(cover.url)
@@ -228,7 +230,7 @@ export function Masonry<T>({
     for (let i = firstUnplaced; i < Math.min(items.length, target); i++) {
       const item = items[i]
       const cover = item === undefined ? null : getCover(item)
-      if (cover && !(cover.width && cover.height)) probe(cover.url)
+      if (cover && cover.kind !== 'video' && !(cover.width && cover.height)) probe(cover.url)
     }
   }, [firstUnplaced, items, getCover, nearEnd, focusIndex, windowSize, metrics.columns])
 

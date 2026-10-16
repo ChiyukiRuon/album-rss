@@ -6,7 +6,13 @@ export type Density = 'compact' | 'standard' | 'roomy'
 export type ListStatus = 'unread' | 'all'
 export type WallMode = 'albums' | 'images'
 
+export type VideoEndBehavior = 'loop' | 'pause' | 'nextGroup'
+
 export interface Settings {
+  /** 视频播放结束后的行为 */
+  videoEndBehavior: VideoEndBehavior
+  videoAutoplay: boolean
+  videoAutoplayCellular: boolean
   /** 进入图集且至少一张图片显示成功后标记已读 */
   autoRead: boolean
   downloadRead: boolean

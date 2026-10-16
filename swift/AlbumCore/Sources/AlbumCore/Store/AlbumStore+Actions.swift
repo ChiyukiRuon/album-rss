@@ -78,6 +78,7 @@ extension AlbumStore {
 
   /// 保存到相册。全部成功后按设置把图集标为已读；失败时给出原因和备用操作（默认打开原图）
   public func download(key: String, entry: Entry, images: [ImageAsset], fallback: ToastCenter.Action? = nil) async {
+    let images = images.filter { !$0.isVideo }
     guard let endpoint, downloads[key]?.status != .running, !images.isEmpty else { return }
     let epoch = generation
     let total = images.count

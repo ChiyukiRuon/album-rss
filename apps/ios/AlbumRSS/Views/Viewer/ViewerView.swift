@@ -25,6 +25,14 @@ struct ViewerView: View {
         ImagePager(
           current: page,
           pipeline: pipeline,
+          autoplay: store.settings.videoAutoplay && VideoNetworkMonitor.shared.connected
+            && (store.settings.videoAutoplayCellular || VideoNetworkMonitor.shared.unmetered),
+          endBehavior: store.settings.videoEndBehavior,
+          onVideoEnded: { ended in
+            guard let current = app.viewer.session, current.entryID == ended.entryID, current.index == ended.index,
+              let next = nextEntry(after: entry, session: current) else { return }
+            go(entryID: next.id, index: 0)
+          },
           neighbor: neighbor,
           order: order,
           onChange: { go(entryID: $0.entryID, index: $0.index) },
@@ -34,7 +42,7 @@ struct ViewerView: View {
         )
         .ignoresSafeArea()
         .accessibilityLabel("第 \(index + 1) 张，共 \(entry.images.count) 张")
-        if !chromeHidden {
+        if !chromeHidden || page.isVideo {
           chrome(entry: entry, index: index, session: session)
             .transition(.opacity)
         }
@@ -69,7 +77,7 @@ struct ViewerView: View {
     } else if case .size(let width, let height) = app.probe.result(for: image.url) {
       size = CGSize(width: width, height: height)
     }
-    return ViewerPage(entryID: entry.id, index: index, url: image.url, size: size)
+    return ViewerPage(entryID: entry.id, index: index, url: image.url, size: size, isVideo: image.isVideo)
   }
 
   /// 看完当前图集后继续翻页，直接进入相邻的图集；向前翻进入上一组的最后一张
@@ -221,17 +229,21 @@ struct ViewerView: View {
         .buttonStyle(ViewerButtonStyle())
 
       Menu {
-        Button("打开原图", systemImage: "arrow.up.forward.square") { open(image.url) }
+        Button(image.isVideo ? "打开视频" : "打开原图", systemImage: "arrow.up.forward.square") { open(image.url) }
           .disabled(DemoArt.isDemo(URL(string: image.url) ?? URL(fileURLWithPath: "/")))
         if !entry.url.isEmpty {
           Button("查看原文", systemImage: "safari") { open(entry.url) }
         }
-        Button("复制图片地址", systemImage: "link") {
+        Button("复制媒体地址", systemImage: "link") {
           UIPasteboard.general.string = image.url
-          app.store.toasts.show("已复制图片地址", tone: .success)
+          app.store.toasts.show("已复制媒体地址", tone: .success)
         }
-        Button("分享图片…", systemImage: "square.and.arrow.up") { share(image, entry: entry) }
-          .disabled(preparingShare)
+        if image.isVideo, let url = URL(string: image.url) {
+          ShareLink(item: url) { Label("分享视频链接", systemImage: "square.and.arrow.up") }
+        } else {
+          Button("分享图片…", systemImage: "square.and.arrow.up") { share(image, entry: entry) }
+            .disabled(preparingShare)
+        }
         Divider()
         Button(entry.read ? "标为未读" : "标为已读", systemImage: entry.read ? "eye.slash" : "eye") {
           app.store.setRead([entry.id], !entry.read)
@@ -342,7 +354,7 @@ private struct ThumbnailStrip: View {
             Button {
               go(entry.id, offset)
             } label: {
-              CardImage(url: image.url, size: CGSize(width: side, height: side), long: false, failedEarlier: false, dimmed: false)
+              MediaCover(asset: image, size: CGSize(width: side, height: side), long: false, failedEarlier: false, dimmed: false)
                 .environment(\.colorScheme, .dark)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay {
@@ -363,7 +375,7 @@ private struct ThumbnailStrip: View {
             } label: {
               HStack(spacing: 10) {
                 if let cover = next.images.first {
-                  CardImage(url: cover.url, size: CGSize(width: side, height: side), long: false, failedEarlier: false, dimmed: false)
+                  MediaCover(asset: cover, size: CGSize(width: side, height: side), long: false, failedEarlier: false, dimmed: false)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 VStack(alignment: .leading, spacing: 1) {
@@ -431,7 +443,7 @@ private struct InfoSheet: View {
           VStack(spacing: 0) {
             fact("发布时间", Formatting.fullTime(entry.publishedAt))
             fact("来自订阅", feed?.title ?? "未知订阅")
-            fact("图片", "\(entry.images.count) 张")
+            fact("媒体", "\(entry.images.filter { !$0.isVideo }.count) 张图片 · \(entry.images.filter { $0.isVideo }.count) 个视频")
           }
           .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.viewerSurface))
           HStack(spacing: 10) {

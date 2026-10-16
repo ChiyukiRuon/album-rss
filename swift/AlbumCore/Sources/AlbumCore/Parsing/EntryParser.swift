@@ -5,7 +5,7 @@ import SwiftSoup
 /// 两端用 `contracts/fixtures/media` 里的同一组样例校验。正文不会被执行或渲染。
 public enum EntryParser {
   /// 提取规则变化时递增；本地缓存的文章版本较旧时会重新解析
-  public static let version = 1
+  public static let version = 2
 
   /// 解析时整体忽略的元素：它们的图片和文字都不算
   private static let removedTags: Set<String> = [
@@ -28,13 +28,13 @@ public enum EntryParser {
     var seen = Set<String>()
     let base = remote.url.isEmpty ? server : remote.url
 
-    func add(_ value: String, width: Double? = nil, height: Double? = nil, alt: String? = nil) {
+    func add(_ value: String, width: Double? = nil, height: Double? = nil, alt: String? = nil, kind: String? = nil, poster: String? = nil) {
       let url = mediaURL(value, base: base, server: server, mediaOrigin: mediaOrigin)
       if url.isEmpty || seen.contains(url) { return }
       // 追踪像素：宽高都已知且都不超过 2。不记入 seen，之后同一地址的正常图片仍然保留
       if let width, let height, width <= 2, height <= 2 { return }
       seen.insert(url)
-      images.append(ImageAsset(key: url, url: url, width: width, height: height, alt: alt))
+      images.append(ImageAsset(key: url, url: url, width: width, height: height, alt: alt, kind: kind, poster: poster))
     }
 
     var text = ""
@@ -45,6 +45,16 @@ public enum EntryParser {
     if !html.isEmpty, let body = try? SwiftSoup.parseBodyFragment(html).body() {
       var ancestors: [Element] = []
       walk(body, ancestors: &ancestors, text: &text) { image, ancestors in
+        if image.tagNameNormal() == "video" {
+          let sources = (try? image.select("source").array()) ?? []
+          let candidates = [attribute(image, "src"), attribute(image, "data-src")] + sources.map { attribute($0, "src") }
+          if let value = candidates.first(where: { !mediaURL($0, base: base, server: server, mediaOrigin: mediaOrigin).isEmpty }) {
+            let poster = mediaURL(attribute(image, "poster"), base: base, server: server, mediaOrigin: mediaOrigin)
+            add(value, width: dimension(attribute(image, "width")), height: dimension(attribute(image, "height")),
+              kind: "video", poster: poster.isEmpty ? nil : poster)
+          }
+          return
+        }
         let picture = ancestors.last { $0.tagNameNormal() == "picture" }
         let source = picture.flatMap { firstDescendant(of: $0) { $0.tagNameNormal() == "source" && $0.hasAttr("srcset") } }
         let value = firstNonEmpty([
@@ -67,8 +77,9 @@ public enum EntryParser {
         )
       }
     }
-    for enclosure in remote.enclosures where enclosure.mimeType.hasPrefix("image/") {
-      add(enclosure.url)
+    for enclosure in remote.enclosures {
+      if enclosure.mimeType.lowercased().hasPrefix("image/") { add(enclosure.url) }
+      if enclosure.mimeType.lowercased().hasPrefix("video/") { add(enclosure.url, kind: "video") }
     }
 
     let paragraphs = text.unicodeScalars
@@ -111,7 +122,7 @@ public enum EntryParser {
         text += "\n"
         continue
       }
-      if tag == "img" { onImage(element, ancestors) }
+      if tag == "img" || tag == "video" { onImage(element, ancestors) }
       ancestors.append(element)
       walk(element, ancestors: &ancestors, text: &text, onImage: onImage)
       ancestors.removeLast()

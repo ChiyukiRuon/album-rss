@@ -54,6 +54,10 @@ public struct Feed: Codable, Hashable, Sendable, Identifiable {
 }
 
 public struct ImageAsset: Codable, Hashable, Sendable, Identifiable {
+  /// nil 为图片，兼容已有缓存；images 字段现在同时容纳视频。
+  public var kind: String?
+  public var poster: String?
+  public var isVideo: Bool { kind == "video" }
   /// 去重与缓存用的键，目前就是规范化后的地址
   public var key: String
   public var url: String
@@ -63,7 +67,9 @@ public struct ImageAsset: Codable, Hashable, Sendable, Identifiable {
 
   public var id: String { key }
 
-  public init(key: String, url: String, width: Double? = nil, height: Double? = nil, alt: String? = nil) {
+  public init(key: String, url: String, width: Double? = nil, height: Double? = nil, alt: String? = nil, kind: String? = nil, poster: String? = nil) {
+    self.kind = kind
+    self.poster = poster
     self.key = key
     self.url = url
     self.width = width

@@ -18,12 +18,14 @@ interface DownloadButtonProps {
 export function DownloadButton({
   downloadKey,
   entry,
-  images,
+  images: assets,
   variant = 'ghost',
   size = 'sm',
   fallback,
 }: DownloadButtonProps) {
   const state = useApp((s) => s.downloads[downloadKey])
+  const images = assets.filter((image) => image.kind !== 'video')
+  if (!images.length) return null
   const idleLabel = images.length > 1 ? `下载图集（${images.length} 张）` : '下载图片'
 
   let label = idleLabel

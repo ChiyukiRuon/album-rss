@@ -57,6 +57,30 @@ struct SettingsView: View {
         }
       }
 
+      Section("视频播放") {
+        HStack(spacing: 16) {
+          SettingLabel(title: "播放结束后", detail: "选择视频播完后的行为")
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+          Picker("播放结束后", selection: binding(\.videoEndBehavior)) {
+            Text("循环播放").tag(VideoEndBehavior.loop)
+            Text("播完暂停").tag(VideoEndBehavior.pause)
+            Text("播完切换").tag(VideoEndBehavior.nextGroup)
+          }
+          .pickerStyle(.menu)
+          .labelsHidden()
+          .fixedSize()
+        }
+        Toggle(isOn: binding(\.videoAutoplay)) {
+          SettingLabel(title: "打开视频时自动播放", detail: "进入查看器或翻到视频时自动播放。")
+        }
+        if store.settings.videoAutoplay {
+          Toggle(isOn: binding(\.videoAutoplayCellular)) {
+            SettingLabel(title: "使用数据流量时自动播放", detail: "关闭后，使用蜂窝网络或个人热点时需手动播放。")
+          }
+        }
+      }
+
       Section("外观") {
         Picker(selection: binding(\.theme)) {
           Text("跟随系统").tag(Theme.system)

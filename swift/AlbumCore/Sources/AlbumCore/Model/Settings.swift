@@ -41,7 +41,18 @@ public enum WallMode: String, Codable, Sendable, CaseIterable {
   case images
 }
 
+public enum VideoEndBehavior: String, Codable, Sendable, CaseIterable {
+  case loop
+  case pause
+  case nextGroup
+}
+
 public struct Settings: Codable, Equatable, Sendable {
+  /// 视频播放结束后的行为，旧设置默认停在结尾
+  public var videoEndBehavior: VideoEndBehavior = .pause
+  /// 打开视频时自动播放；默认关闭，流量偏好在主开关关闭时保留
+  public var videoAutoplay = false
+  public var videoAutoplayCellular = false
   /// 进入图集且至少一张图片显示成功后标记已读
   public var autoRead = true
   /// 保存到相册全部成功后标记已读
@@ -62,6 +73,9 @@ public struct Settings: Codable, Equatable, Sendable {
   public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let defaults = Settings()
+    videoEndBehavior = (try? container.decode(VideoEndBehavior.self, forKey: .videoEndBehavior)) ?? defaults.videoEndBehavior
+    videoAutoplay = (try? container.decode(Bool.self, forKey: .videoAutoplay)) ?? defaults.videoAutoplay
+    videoAutoplayCellular = (try? container.decode(Bool.self, forKey: .videoAutoplayCellular)) ?? defaults.videoAutoplayCellular
     autoRead = (try? container.decode(Bool.self, forKey: .autoRead)) ?? defaults.autoRead
     downloadRead = (try? container.decode(Bool.self, forKey: .downloadRead)) ?? defaults.downloadRead
     showImageless = (try? container.decode(Bool.self, forKey: .showImageless)) ?? defaults.showImageless

@@ -1,3 +1,4 @@
+import AVKit
 import AlbumCore
 import AlbumImages
 import Nuke
@@ -12,6 +13,7 @@ nonisolated struct ViewerPage: Hashable, Sendable {
   /// 原图尺寸（已知时）：用于适应窗口和限制解码大小。不参与相等判断：
   /// 尺寸测量结果晚到时，同一页不应被当成另一页而重新加载
   let size: CGSize?
+  var isVideo: Bool = false
 
   static func == (lhs: ViewerPage, rhs: ViewerPage) -> Bool {
     lhs.entryID == rhs.entryID && lhs.index == rhs.index && lhs.url == rhs.url
@@ -33,6 +35,9 @@ struct ImagePager: UIViewControllerRepresentable {
 
   let current: ViewerPage
   let pipeline: ImagePipeline
+  let autoplay: Bool
+  let endBehavior: VideoEndBehavior
+  let onVideoEnded: (ViewerPage) -> Void
   let neighbor: (ViewerPage, Direction) -> ViewerPage?
   /// 页在顺序里的位置，决定程序跳转时的翻页方向
   let order: (ViewerPage) -> [Int]
@@ -61,6 +66,7 @@ struct ImagePager: UIViewControllerRepresentable {
   func updateUIViewController(_ controller: UIPageViewController, context: Context) {
     let coordinator = context.coordinator
     coordinator.parent = self
+    (controller.viewControllers?.first as? ZoomPageController)?.refreshAutoplay()
     guard let displayed = coordinator.displayed, displayed != current, !coordinator.transitioning else { return }
     // 缩略图条、“下一组”等程序跳转
     let forward = !order(current).lexicographicallyPrecedes(order(displayed))
@@ -90,6 +96,12 @@ struct ImagePager: UIViewControllerRepresentable {
 
     func makePage(_ page: ViewerPage) -> ZoomPageController {
       let controller = ZoomPageController(page: page, pipeline: parent.pipeline)
+      controller.endBehavior = { [weak self] in self?.parent.endBehavior ?? .pause }
+      controller.onVideoEnded = { [weak self] page in
+        guard let self, self.displayed == page, !self.transitioning else { return }
+        self.parent.onVideoEnded(page)
+      }
+      controller.shouldAutoplay = { [weak self] in self?.parent.autoplay ?? false }
       controller.onTap = { [weak self] in self?.parent.onTap() }
       controller.onShown = { [weak self] page in
         guard let self, page == self.displayed else { return }
@@ -102,7 +114,7 @@ struct ImagePager: UIViewControllerRepresentable {
     /// 预取前后各一张，换图时放弃旧的预取
     func prefetch(around page: ViewerPage) {
       let pages = [parent.neighbor(page, .after), parent.neighbor(page, .before)].compactMap { $0 }
-      let requests = pages.compactMap { ImageRequests.viewer($0.url, originalSize: $0.size) }
+      let requests = pages.filter { !$0.isVideo }.compactMap { ImageRequests.viewer($0.url, originalSize: $0.size) }
       prefetcher?.stopPrefetching()
       let prefetcher = ImagePrefetcher(pipeline: parent.pipeline)
       prefetcher.startPrefetching(with: requests)
@@ -156,6 +168,15 @@ final class ZoomPageController: UIViewController {
   private let zoomView = ZoomImageView()
   private var placeholder: UIHostingController<PageStateView>?
   private var task: Task<Void, Never>?
+  var endBehavior: (() -> VideoEndBehavior)?
+  var onVideoEnded: ((ViewerPage) -> Void)?
+  var shouldAutoplay: (() -> Bool)?
+  private var visible = false
+  private var attemptedAutoplay = false
+  private var automaticallyPlaying = false
+  private var videoController: AVPlayerViewController?
+  private var playbackObservation: NSKeyValueObservation?
+  private var statusObservation: NSKeyValueObservation?
   private(set) var isShown = false
   var onTap: (() -> Void)?
   var onShown: ((ViewerPage) -> Void)?
@@ -186,7 +207,94 @@ final class ZoomPageController: UIViewController {
     task?.cancel()
   }
 
+  override func viewDidAppear(_ animated: Bool) {
+    super.viewDidAppear(animated)
+    visible = true
+    refreshAutoplay()
+  }
+
+  /// 相邻预备页不播放；网络变化也不会把用户暂停的视频重新启动。
+  func refreshAutoplay() {
+    guard page.isVideo else { return }
+    guard shouldAutoplay?() == true else {
+      if automaticallyPlaying { videoController?.player?.pause() }
+      automaticallyPlaying = false
+      return
+    }
+    guard visible, !attemptedAutoplay, let player = videoController?.player else { return }
+    attemptedAutoplay = true
+    automaticallyPlaying = true
+    player.play()
+  }
+
+  override func viewWillDisappear(_ animated: Bool) {
+    super.viewWillDisappear(animated)
+    visible = false
+    attemptedAutoplay = false
+    automaticallyPlaying = false
+    videoController?.player?.pause()
+  }
+
+  private func loadVideo() {
+    showState(nil)
+    zoomView.isHidden = true
+    if videoController == nil {
+      let controller = AVPlayerViewController()
+      addChild(controller)
+      view.addSubview(controller.view)
+      controller.view.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        controller.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+        controller.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+        controller.view.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 72),
+        controller.view.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -140),
+      ])
+      controller.didMove(toParent: self)
+      videoController = controller
+    }
+    guard let url = URL(string: page.url) else { showState(.failed); return }
+    videoController?.player?.pause()
+    let player = AVPlayer(url: url)
+    videoController?.player = player
+    NotificationCenter.default.removeObserver(self, name: AVPlayerItem.didPlayToEndTimeNotification, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(videoEnded(_:)),
+      name: AVPlayerItem.didPlayToEndTimeNotification, object: player.currentItem)
+    playbackObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+      let playing = player.timeControlStatus == .playing
+      Task { @MainActor [weak self] in
+        guard let self, playing else { return }
+        self.isShown = true
+        self.onShown?(self.page)
+      }
+    }
+    statusObservation = player.currentItem?.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+      let failed = item.status == .failed
+      Task { @MainActor [weak self] in
+        if failed { self?.showState(.failed) }
+      }
+    }
+  }
+
+  @objc nonisolated private func videoEnded(_ notification: Notification) {
+    let item = notification.object as? AVPlayerItem
+    Task { @MainActor [weak self] in
+      guard let self, self.visible, let player = self.videoController?.player, player.currentItem === item else { return }
+      switch self.endBehavior?() ?? .pause {
+      case .pause:
+        player.pause()
+      case .nextGroup:
+        player.pause()
+        self.onVideoEnded?(self.page)
+      case .loop:
+        let finished = await player.seek(to: .zero)
+        guard finished, self.visible, player === self.videoController?.player, self.endBehavior?() == .loop else { return }
+        player.play()
+      }
+    }
+  }
+
   private func load() {
+    if page.isVideo { loadVideo(); return }
     showState(.loading(aspect: page.size.map { $0.width / max(1, $0.height) }))
     task?.cancel()
     guard let request = ImageRequests.viewer(page.url, originalSize: page.size) else {
@@ -258,14 +366,14 @@ struct PageStateView: View {
       case .failed:
         VStack(spacing: 10) {
           Image(systemName: "photo.badge.exclamationmark").font(.system(size: 34))
-          Text("这张图片加载失败").font(.system(size: 17, weight: .bold))
-          Text("可能是源站暂时无法访问，或者图片地址已经失效。")
+          Text("媒体加载失败").font(.system(size: 17, weight: .bold))
+          Text("可能是源站暂时无法访问，地址已经失效或格式不受支持。")
             .font(.system(size: 14))
             .foregroundStyle(Color.viewerSecondary)
             .multilineTextAlignment(.center)
           HStack(spacing: 10) {
             Button("重试", systemImage: "arrow.clockwise", action: retry)
-            Button("打开原图", systemImage: "arrow.up.forward.square", action: openOriginal)
+            Button("打开媒体链接", systemImage: "arrow.up.forward.square", action: openOriginal)
           }
           .buttonStyle(.bordered)
           .tint(.white)

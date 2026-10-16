@@ -42,6 +42,7 @@ nonisolated struct ResolvedTile: Equatable, Sendable {
   @MainActor
   static func resolve(_ item: WallItem, probe: ImageSizeProbe) -> ResolvedTile? {
     guard let cover = item.cover else { return .text }
+    if cover.isVideo { return ResolvedTile(WallLayout.displayRatio(width: cover.width ?? 16, height: cover.height ?? 9)) }
     if let width = cover.width, let height = cover.height {
       return ResolvedTile(WallLayout.displayRatio(width: width, height: height))
     }

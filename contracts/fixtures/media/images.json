@@ -86,7 +86,7 @@
       }
     },
     {
-      "name": "附件只取图片类型，排在正文图片之后并参与去重",
+      "name": "图片和视频附件排在正文媒体之后并参与去重",
       "input": {
         "content": "<img src=\"a.jpg\">",
         "url": "https://example.com/p/1",
@@ -100,7 +100,8 @@
       "expected": {
         "images": [
           { "url": "https://example.com/p/a.jpg" },
-          { "url": "https://example.com/b.png" }
+          { "url": "https://example.com/b.png" },
+          { "url": "https://example.com/v.mp4", "kind": "video" }
         ],
         "paragraphs": []
       }

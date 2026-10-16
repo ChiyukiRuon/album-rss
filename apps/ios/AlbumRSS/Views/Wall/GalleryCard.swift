@@ -42,8 +42,8 @@ struct GalleryCard: View {
     let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
     if let image {
       Button(action: open) {
-        CardImage(
-          url: image.url,
+        MediaCover(
+          asset: image,
           size: CGSize(width: placement.width, height: placement.mediaHeight),
           long: tile.long,
           failedEarlier: tile.failed,
@@ -57,8 +57,8 @@ struct GalleryCard: View {
       .buttonStyle(CardPressStyle())
       .modifier(HeroSource(id: key, namespace: namespace))
       .contextMenu { menu(image) } preview: {
-        CardImage(
-          url: image.url, size: CGSize(width: placement.width * 1.6, height: placement.mediaHeight * 1.6), long: false,
+        MediaCover(
+          asset: image, size: CGSize(width: placement.width * 1.6, height: placement.mediaHeight * 1.6), long: false,
           failedEarlier: false, dimmed: false
         )
         .frame(width: placement.width * 1.6, height: placement.mediaHeight * 1.6)
@@ -100,6 +100,7 @@ struct GalleryCard: View {
   private var badges: some View {
     let count = entry.images.count
     return HStack(spacing: 4) {
+      if image?.isVideo == true { Badge(text: "视频", systemImage: "play.fill") }
       if tile.long { Badge(text: "长图") }
       if imageIndex != nil {
         if count > 1 { Badge(text: "\(index + 1)/\(count)") }
@@ -162,9 +163,11 @@ struct GalleryCard: View {
     Button(entry.starred ? "取消收藏" : "收藏", systemImage: entry.starred ? "star.slash" : "star") {
       app.store.setStarred(entry.id, !entry.starred)
     }
-    let targets = imageIndex == nil ? entry.images : [image]
-    Button(targets.count > 1 ? "保存图集（\(targets.count) 张）" : "保存图片", systemImage: "square.and.arrow.down") {
-      Task { await app.store.download(key: key, entry: entry, images: targets, fallback: nil) }
+    let targets = (imageIndex == nil ? entry.images : [image]).filter { !$0.isVideo }
+    if !targets.isEmpty {
+      Button(targets.count > 1 ? "保存图集（\(targets.count) 张）" : "保存图片", systemImage: "square.and.arrow.down") {
+        Task { await app.store.download(key: key, entry: entry, images: targets, fallback: nil) }
+      }
     }
     Divider()
     Button("查看「\(author)」", systemImage: "person.crop.square") { app.openFeed(entry.feedId) }
@@ -330,6 +333,7 @@ struct DownloadButton: View {
   let downloadKey: String
   let entry: Entry
   let images: [ImageAsset]
+  private var photos: [ImageAsset] { images.filter { !$0.isVideo } }
   var dark = false
   var fallbackOpen: (() -> Void)?
 
@@ -337,37 +341,39 @@ struct DownloadButton: View {
 
   var body: some View {
     let state = app.store.downloads[downloadKey]
-    Button {
-      let fallback = fallbackOpen.map { open in ToastCenter.Action(label: "在查看器中打开") { open() } }
-      Task { await app.store.download(key: downloadKey, entry: entry, images: images, fallback: fallback) }
-    } label: {
-      Group {
-        switch state?.status {
-        case .running:
-          ProgressRing(progress: state.map { Double($0.done) / Double(max(1, $0.total)) } ?? 0, dark: dark)
-        case .done:
-          Image(systemName: "checkmark").foregroundStyle(Color.ok)
-        case .blocked:
-          Image(systemName: "exclamationmark.circle").foregroundStyle(dark ? Color.viewerSecondary : Color.ink3)
-        case nil:
-          Image(systemName: "arrow.down.to.line")
+    if !photos.isEmpty {
+      Button {
+        let fallback = fallbackOpen.map { open in ToastCenter.Action(label: "在查看器中打开") { open() } }
+        Task { await app.store.download(key: downloadKey, entry: entry, images: photos, fallback: fallback) }
+      } label: {
+        Group {
+          switch state?.status {
+          case .running:
+            ProgressRing(progress: state.map { Double($0.done) / Double(max(1, $0.total)) } ?? 0, dark: dark)
+          case .done:
+            Image(systemName: "checkmark").foregroundStyle(Color.ok)
+          case .blocked:
+            Image(systemName: "exclamationmark.circle").foregroundStyle(dark ? Color.viewerSecondary : Color.ink3)
+          case nil:
+            Image(systemName: "arrow.down.to.line")
+          }
         }
+        .font(.system(size: dark ? 17 : 14, weight: .semibold))
+        .foregroundStyle(dark ? Color.viewerForeground : Color.ink2)
+        .frame(width: dark ? 44 : 32, height: dark ? 44 : 32)
+        .contentShape(Rectangle())
       }
-      .font(.system(size: dark ? 17 : 14, weight: .semibold))
-      .foregroundStyle(dark ? Color.viewerForeground : Color.ink2)
-      .frame(width: dark ? 44 : 32, height: dark ? 44 : 32)
-      .contentShape(Rectangle())
+      .buttonStyle(.plain)
+      .accessibilityLabel(label(state))
     }
-    .buttonStyle(.plain)
-    .accessibilityLabel(label(state))
   }
 
   private func label(_ state: DownloadState?) -> String {
     switch state?.status {
     case .running: "正在保存 \(state?.done ?? 0)/\(state?.total ?? 0)"
     case .done: "已保存"
-    case .blocked: images.count > 1 ? "这些图片没能保存" : "这张图片没能保存"
-    case nil: images.count > 1 ? "保存图集（\(images.count) 张）" : "保存图片"
+    case .blocked: photos.count > 1 ? "这些图片没能保存" : "这张图片没能保存"
+    case nil: photos.count > 1 ? "保存图集（\(photos.count) 张）" : "保存图片"
     }
   }
 }
@@ -386,5 +392,32 @@ private struct ProgressRing: View {
         .animation(.easeOut(duration: 0.2), value: progress)
     }
     .frame(width: 16, height: 16)
+  }
+}
+
+/// 视频使用 poster；没有封面时保留播放占位，不向图片管线发送视频地址。
+struct MediaCover: View {
+  let asset: ImageAsset
+  let size: CGSize
+  let long: Bool
+  let failedEarlier: Bool
+  let dimmed: Bool
+
+  var body: some View {
+    ZStack {
+      if !asset.isVideo || asset.poster != nil {
+        CardImage(url: asset.isVideo ? asset.poster! : asset.url, size: size,
+          long: long, failedEarlier: failedEarlier, dimmed: dimmed)
+      } else {
+        Color.toneBackground
+      }
+      if asset.isVideo {
+        Image(systemName: "play.circle.fill")
+          .font(.system(size: min(40, size.width * 0.5)))
+          .foregroundStyle(.white)
+          .shadow(radius: 4)
+      }
+    }
+    .frame(width: size.width, height: size.height)
   }
 }

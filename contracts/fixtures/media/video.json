@@ -1,0 +1,103 @@
+{
+  "cases": [
+    {
+      "name": "图片与视频按正文顺序混排并解析封面",
+      "input": {
+        "content": "<img src=\"/a.jpg\"><video src=\"/v.mp4\" poster=\"/p.jpg\" width=\"640\" height=\"360\"></video><img src=\"/b.jpg\">",
+        "url": "https://example.com/posts/1",
+        "server": "https://rss.example.com",
+        "enclosures": []
+      },
+      "expected": {
+        "images": [
+          {
+            "url": "https://example.com/a.jpg"
+          },
+          {
+            "url": "https://example.com/v.mp4",
+            "kind": "video",
+            "poster": "https://example.com/p.jpg",
+            "width": 640,
+            "height": 360
+          },
+          {
+            "url": "https://example.com/b.jpg"
+          }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "视频 source 回退并与附件去重",
+      "input": {
+        "content": "<video src=\"javascript:alert(1)\"><source src=\"data:video/mp4,x\"><source src=\"../v.mp4\"></video>",
+        "url": "https://example.com/posts/1",
+        "server": "https://rss.example.com",
+        "enclosures": [
+          {
+            "url": "https://example.com/v.mp4",
+            "mimeType": "video/mp4"
+          },
+          {
+            "url": "/other.webm",
+            "mimeType": "VIDEO/WEBM"
+          }
+        ]
+      },
+      "expected": {
+        "images": [
+          {
+            "url": "https://example.com/v.mp4",
+            "kind": "video"
+          },
+          {
+            "url": "https://example.com/other.webm",
+            "kind": "video"
+          }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "视频拒绝危险地址与封面并忽略 iframe",
+      "input": {
+        "content": "<video src=\"javascript:x\"></video><video src=\"/v.mp4\" poster=\"data:image/png,x\"></video><iframe><video src=\"/hidden.mp4\"></video></iframe>",
+        "url": "https://example.com/posts/1",
+        "server": "https://rss.example.com",
+        "enclosures": []
+      },
+      "expected": {
+        "images": [
+          {
+            "url": "https://example.com/v.mp4",
+            "kind": "video"
+          }
+        ],
+        "paragraphs": []
+      }
+    },
+    {
+      "name": "仅视频附件也进入媒体列表",
+      "input": {
+        "content": "",
+        "url": "https://example.com/posts/1",
+        "server": "https://rss.example.com",
+        "enclosures": [
+          {
+            "url": "/a.mp4",
+            "mimeType": "video/mp4"
+          }
+        ]
+      },
+      "expected": {
+        "images": [
+          {
+            "url": "https://example.com/a.mp4",
+            "kind": "video"
+          }
+        ],
+        "paragraphs": []
+      }
+    }
+  ]
+}
