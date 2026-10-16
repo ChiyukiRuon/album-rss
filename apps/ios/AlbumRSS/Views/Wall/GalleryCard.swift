@@ -258,6 +258,7 @@ struct CardImage: View {
             failure
           } else {
             ToneView(loading: true)
+              .opacity(dimmed ? 0.45 : 1)
           }
         }
         .pipeline(pipeline)
@@ -284,6 +285,7 @@ struct CardImage: View {
       }
       .foregroundStyle(Color.ink3)
     }
+    .opacity(dimmed ? 0.45 : 1)
   }
 }
 

@@ -60,7 +60,8 @@
   mask-image: linear-gradient(to bottom, #000 78%, transparent);
 }
 
-.dimmed .loaded {
+.dimmed .loaded,
+.dimmed .fill {
   opacity: 0.45;
 }
 
