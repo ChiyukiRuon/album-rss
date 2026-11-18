@@ -669,14 +669,23 @@ export const actions = {
     })
   },
 
-  /** 订阅的全部未读：先向服务端取齐未读文章（含还没加载的），再标为已读，可撤销 */
-  async markFeedRead(feed: Feed) {
+  markFeedRead(feed: Feed) {
+    return actions.markScopeRead({ feedId: feed.id }, `「${feed.author}」`)
+  },
+
+  /** 先取齐范围内的未读文章（含还没加载的），再统一标为已读，可撤销。 */
+  async markScopeRead(scope: Pick<ListQuery, 'feedId' | 'folderId'>, label: string) {
     const state = appStore.get()
     const endpoint = state.endpoint
-    const label = `「${feed.author}」`
     if (endpoint?.kind !== 'connected') {
+      const feeds = state.feeds.filter(
+        (feed) =>
+          (!scope.feedId || feed.id === scope.feedId) &&
+          (!scope.folderId || feed.folderIds.includes(scope.folderId)),
+      )
+      const feedIds = new Set(feeds.map((feed) => feed.id))
       actions.markAllRead(
-        state.order.filter((id) => state.entries[id]?.feedId === feed.id),
+        state.order.filter((id) => feedIds.has(state.entries[id]!.feedId)),
         label,
       )
       return
@@ -688,11 +697,7 @@ export const actions = {
       let cursor: string | null = null
       do {
         const since = revision
-        const page: EntryPage = await provider.entries(
-          { feedId: feed.id, unread: true },
-          cursor,
-          500,
-        )
+        const page: EntryPage = await provider.entries({ ...scope, unread: true }, cursor, 500)
         if (epoch !== generation) return
         appStore.set((current) => {
           const entries = mergeEntries(current.entries, endpoint, page.entries, since)
@@ -852,8 +857,7 @@ export const actions = {
     })
     if (explicit) {
       showToast({
-        message:
-          fresh.length > 0 ? `同步完成，新增 ${fresh.length} 个图集` : '同步完成，没有新的图集',
+        message: '同步完成',
         tone: 'success',
       })
     }
@@ -910,14 +914,14 @@ export const actions = {
           f.id === feedId ? { ...f, parsingErrorCount: f.parsingErrorCount + 1 } : f,
         ),
       }))
-      showToast({ message: `刷新失败：${feed.parsingError}`, tone: 'warning' })
+      showToast({ message: '刷新失败', detail: feed.parsingError, tone: 'warning' })
       return
     }
     appStore.set((state) => ({
       ...state,
       feeds: state.feeds.map((f) => (f.id === feedId ? { ...f, checkedAt: Date.now() } : f)),
     }))
-    showToast({ message: `已刷新「${feed.author}」，没有新的图集`, tone: 'success' })
+    showToast({ message: '已刷新订阅', tone: 'success' })
   },
 
   setViewerSequence(ids: string[] | null) {
@@ -971,12 +975,12 @@ export const actions = {
         }
         if (epoch !== generation) return
         if (appStore.get().settings.downloadRead) actions.setRead([entry.id], true)
-        showToast({ message: `已下载 ${done} 张图片`, tone: 'success' })
+        showToast({ message: done > 1 ? `已保存 ${done} 张图片` : '已保存图片', tone: 'success' })
       } catch {
         if (epoch !== generation) return
         setState({ status: 'blocked', done, total })
         showToast({
-          message: done ? `已下载 ${done} 张，其余图片无法直接下载` : '图片无法直接下载',
+          message: done ? `已保存 ${done} 张，其余图片没能保存` : '图片没能保存',
           detail: '可能是网络或跨域限制。可打开原图后右键或长按保存。',
           tone: 'warning',
           action:
@@ -1019,7 +1023,7 @@ export const actions = {
     }
     if (appStore.get().settings.downloadRead) actions.setRead([entry.id], true)
     showToast({
-      message: total > 1 ? `已下载 ${total} 张图片` : '已下载图片',
+      message: total > 1 ? `已保存 ${total} 张图片` : '已保存图片',
       detail: '演示数据，没有写入文件。',
       tone: 'success',
     })

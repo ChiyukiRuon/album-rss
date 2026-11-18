@@ -304,22 +304,27 @@ describe('lists', () => {
     expect(appStore.get().scopes[scopeKey(unread)]?.ids).toEqual(['9', '1'])
   })
 
-  it('marks every unread article of a feed, including unloaded ones, with undo', async () => {
-    const { actions, appStore } = await import('./store')
-    const { toastStore } = await import('../components/ui/toast')
-    mocks.unreadCounts.mockResolvedValue({ 2: 3 })
-    await actions.connect(input)
-    mocks.entries
-      .mockResolvedValueOnce(page([remote('1'), remote('5')], '5'))
-      .mockResolvedValueOnce(page([remote('6')]))
-    await actions.markFeedRead(appStore.get().feeds[0]!)
-    expect(mocks.entries).toHaveBeenCalledWith({ feedId: '2', unread: true }, '5', 500)
-    expect(appStore.get().unread).toEqual({ 2: 0 })
-    await vi.waitFor(() => expect(mocks.setRead).toHaveBeenCalledWith(['1', '5', '6'], true))
-    toastStore.get().at(-1)?.action?.run()
-    await vi.waitFor(() => expect(mocks.setRead).toHaveBeenCalledWith(['1', '5', '6'], false))
-    expect(appStore.get().unread).toEqual({ 2: 3 })
-  })
+  it.each(['feed', 'folder', 'all'])(
+    'marks all unread pages in the %s scope with undo',
+    async (kind) => {
+      const { actions, appStore } = await import('./store')
+      const { toastStore } = await import('../components/ui/toast')
+      mocks.unreadCounts.mockResolvedValue({ 2: 3 })
+      await actions.connect(input)
+      mocks.entries
+        .mockResolvedValueOnce(page([remote('1'), remote('5')], '5'))
+        .mockResolvedValueOnce(page([remote('6')]))
+      const scope = kind === 'feed' ? { feedId: '2' } : kind === 'folder' ? { folderId: '3' } : {}
+      if (kind === 'feed') await actions.markFeedRead(appStore.get().feeds[0]!)
+      else await actions.markScopeRead(scope, kind === 'folder' ? '摄影' : '全部订阅')
+      expect(mocks.entries).toHaveBeenCalledWith({ ...scope, unread: true }, '5', 500)
+      expect(appStore.get().unread).toEqual({ 2: 0 })
+      await vi.waitFor(() => expect(mocks.setRead).toHaveBeenCalledWith(['1', '5', '6'], true))
+      toastStore.get().at(-1)?.action?.run()
+      await vi.waitFor(() => expect(mocks.setRead).toHaveBeenCalledWith(['1', '5', '6'], false))
+      expect(appStore.get().unread).toEqual({ 2: 3 })
+    },
+  )
 })
 
 describe('sync', () => {

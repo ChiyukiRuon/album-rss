@@ -90,14 +90,14 @@ export function FeedPage() {
                 disabled={refreshing}
                 onClick={() => void actions.refreshFeed(feed.id)}
               >
-                刷新
+                刷新订阅
               </Button>
             )}
             <ConfirmButton
               label="全部标为已读"
               icon={<ChecksIcon aria-hidden />}
               disabled={unread === 0}
-              message={`将「${feed.author}」的 ${unread} 个未读图集标为已读？之后可以撤销。`}
+              message={`将「${feed.author}」的 ${unread} 个未读图集标为已读？`}
               confirmLabel="标为已读"
               onConfirm={() => void actions.markFeedRead(feed)}
             />
@@ -122,9 +122,7 @@ export function FeedPage() {
           <WarningCircleIcon weight="fill" aria-hidden className={styles.bannerIcon} />
           <div className={styles.bannerBody}>
             <p className={styles.bannerTitle}>最近 {feed.parsingErrorCount} 次抓取失败</p>
-            <p className={styles.bannerText}>
-              {feed.parsingError}。下面是之前同步到的内容，RSS 服务会继续按计划重试。
-            </p>
+            <p className={styles.bannerText}>{feed.parsingError || '订阅源暂时无法抓取'}。</p>
           </div>
           {canRefresh && (
             <Button
@@ -148,7 +146,7 @@ export function FeedPage() {
             title={status === 'unread' ? `「${feed.author}」没有未读图集` : '还没有图集'}
             description={
               status === 'unread'
-                ? '新作品同步到之后会出现在这里。'
+                ? '新图集同步后会出现在这里。'
                 : '这个订阅里还没有包含图片的文章。'
             }
             actions={

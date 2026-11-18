@@ -1,14 +1,39 @@
 import { ArrowClockwiseIcon, ChecksIcon } from '@phosphor-icons/react'
+import { useEffect } from 'react'
 import { EmptyState } from '../components/page/EmptyState'
 import { PageHeader } from '../components/page/PageHeader'
 import { Button } from '../components/ui/Button'
+import { ConfirmButton } from '../components/ui/ConfirmButton'
 import { EntryWall } from '../components/wall/EntryWall'
 import { relativeTime } from '../lib/format'
 import { useNow } from '../lib/useNow'
-import { useScopeList, useUnreadCounts } from '../prototype/selectors'
+import { hasImages, useScopeList, useUnreadCounts } from '../prototype/selectors'
 import { actions, useApp } from '../prototype/store'
 import { FolderChips, ModeSwitch, NewItemsPill, StatusSwitch, SyncButton } from './wallControls'
 import { useWallParams } from './useWallParams'
+
+/** 只在未读墙显示空状态时挂载，保留已在浏览的列表快照。 */
+function AutoShowNewUnread({ folderId, imagesOnly }: { folderId?: string; imagesOnly: boolean }) {
+  const available = useApp((state) =>
+    state.sync.pendingIds.some((id) => {
+      const entry = state.entries[id]
+      if (
+        !entry ||
+        entry.read ||
+        (!hasImages(entry) && (imagesOnly || !state.settings.showImageless))
+      )
+        return false
+      return (
+        !folderId ||
+        state.feeds.some((feed) => feed.id === entry.feedId && feed.folderIds.includes(folderId))
+      )
+    }),
+  )
+  useEffect(() => {
+    if (available) actions.applyPending()
+  }, [available])
+  return null
+}
 
 export function BrowsePage() {
   const { status, mode, folderId, update } = useWallParams()
@@ -19,6 +44,7 @@ export function BrowsePage() {
   const now = useNow()
   const folder = folders.find((f) => f.id === folderId)
   const unread = folderId ? (counts.byFolder[folderId] ?? 0) : counts.total
+  const scopeLabel = folder ? `「${folder.title}」` : '全部订阅'
   const syncedText =
     sync.status === 'syncing' ? '正在同步…' : `${relativeTime(sync.lastSyncedAt, now)}同步`
 
@@ -36,7 +62,19 @@ export function BrowsePage() {
             · {syncedText}
           </>
         }
-        actions={<SyncButton />}
+        actions={
+          <>
+            <SyncButton />
+            <ConfirmButton
+              label="全部标为已读"
+              icon={<ChecksIcon aria-hidden />}
+              disabled={unread === 0}
+              message={`将 ${unread} 个未读图集标为已读？`}
+              confirmLabel="标为已读"
+              onConfirm={() => void actions.markScopeRead({ folderId }, scopeLabel)}
+            />
+          </>
+        }
         toolbar={
           <>
             <StatusSwitch
@@ -72,23 +110,26 @@ export function BrowsePage() {
         dimRead
         empty={
           status === 'unread' ? (
-            <EmptyState
-              icon={<ChecksIcon aria-hidden />}
-              title="没有未读的订阅"
-              description={`${syncedText}`}
-              actions={
-                <>
-                  <Button
-                    variant="primary"
-                    icon={<ArrowClockwiseIcon aria-hidden />}
-                    onClick={() => void actions.sync({ explicit: true })}
-                  >
-                    同步
-                  </Button>
-                  <Button onClick={() => update({ status: 'all' })}>查看全部</Button>
-                </>
-              }
-            />
+            <>
+              <AutoShowNewUnread folderId={folderId} imagesOnly={mode === 'images'} />
+              <EmptyState
+                icon={<ChecksIcon aria-hidden />}
+                title="没有未读的订阅"
+                description={`${syncedText}`}
+                actions={
+                  <>
+                    <Button
+                      variant="primary"
+                      icon={<ArrowClockwiseIcon aria-hidden />}
+                      onClick={() => void actions.sync({ explicit: true })}
+                    >
+                      同步
+                    </Button>
+                    <Button onClick={() => update({ status: 'all' })}>查看全部</Button>
+                  </>
+                }
+              />
+            </>
           ) : (
             <EmptyState
               icon={<ArrowClockwiseIcon aria-hidden />}

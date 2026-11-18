@@ -39,7 +39,7 @@ struct FeedsView: View {
           )
         }
         if groups.isEmpty {
-          EmptyStateView(systemImage: "dot.radiowaves.up.forward", title: "还没有订阅", description: "在 RSS 服务里添加订阅后，同步一次就会出现在这里。")
+          EmptyStateView(systemImage: "dot.radiowaves.up.forward", title: "还没有订阅", description: "在 RSS 服务里添加订阅，同步后即可在这里查看。")
         }
         ForEach(active.map { [$0] } ?? groups) { group in
           VStack(alignment: .leading, spacing: 10) {

@@ -22,7 +22,7 @@ export function StatusSwitch({
       value={status}
       onChange={onChange}
       options={[
-        { value: 'unread', label: '未读', count: unread },
+        { value: 'unread', label: '未读', count: unread || undefined },
         { value: 'all', label: '全部' },
       ]}
     />

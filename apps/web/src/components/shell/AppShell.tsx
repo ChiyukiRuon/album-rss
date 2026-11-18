@@ -38,6 +38,7 @@ export function AppShell() {
         <main className={styles.main}>
           {sync.error && (
             <div role="alert" style={{ padding: '16px' }}>
+              <strong>同步失败</strong>
               <p>{sync.error}</p>
               <Button
                 size="sm"

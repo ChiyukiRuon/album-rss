@@ -176,7 +176,7 @@ export function EndpointForm({
               }}
               options={[
                 { value: 'miniflux', label: 'Miniflux' },
-                { value: 'greader', label: 'Google Reader 兼容' },
+                { value: 'greader', label: 'Google Reader' },
               ]}
             />
           </div>
@@ -278,12 +278,13 @@ export function EndpointForm({
                 id={ids.media}
                 className={styles.input}
                 type="url"
-                placeholder="https://rss.example.com"
+                placeholder="https://miniflux.example.com"
                 value={mediaOrigin}
                 onChange={(event) => setMediaOrigin(event.target.value)}
               />
               <p className={styles.help}>
-                通过本机地址连接时，可填写 Miniflux 配置的公开地址，将其 /proxy/ 图片指向当前服务。
+                通过局域网地址连接时，可填写 Miniflux 配置的公开地址，将其 /proxy/
+                图片指向当前服务。
               </p>
             </div>
           )}
@@ -296,7 +297,7 @@ export function EndpointForm({
               onChange={(event) => setRemember(event.target.checked)}
             />
             <span>
-              <span className={styles.checkLabel}>在此浏览器保存凭据</span>
+              <span className={styles.checkLabel}>在此设备保存凭据</span>
               <span className={styles.help}>
                 凭据保存在本机浏览器里，删除这个端点时清除。不勾选时只保存在内存中，刷新页面后这个端点会被移除。
               </span>
@@ -330,12 +331,18 @@ export function EndpointForm({
                 无法连接到 {attempt.host}
               </p>
               <p className={styles.failureText}>{attempt.error}</p>
+              <p>可能的原因：</p>
               <ul className={styles.causes}>
-                <li>这台设备访问不到这个地址。可以在新标签页打开 {attempt.origin} 确认。</li>
+                <li>这台设备无法访问这个地址。可以在新标签页打开 {attempt.origin} 确认。</li>
                 <li>服务器证书无效或已过期。</li>
                 <li>
                   服务没有允许这个页面跨域访问（CORS）。Miniflux 的原生 API 默认允许；Google Reader
                   兼容接口通常需要在服务入口另外配置。
+                </li>
+                <li>
+                  {service === 'miniflux'
+                    ? '服务不是 Miniflux，或地址填写错误。'
+                    : '服务类型或 API 路径错误。'}
                 </li>
                 {attempt.insecure && (
                   <li>这个页面使用 HTTPS，浏览器可能会阻止它连接 HTTP 地址。</li>

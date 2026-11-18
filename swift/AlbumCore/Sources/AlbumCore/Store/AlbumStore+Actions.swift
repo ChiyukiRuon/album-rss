@@ -15,8 +15,13 @@ extension AlbumStore {
 
   /// 订阅的全部未读：先向服务端取齐未读文章（含还没加载的），再标为已读，可撤销
   public func markFeedRead(_ feed: Feed) async {
+    await markScopeRead(EntryScope(feedId: feed.id), label: "「\(feed.author)」")
+  }
+
+  public func markScopeRead(_ scope: EntryScope, label: String) async {
     guard let endpoint else { return }
-    let label = "「\(feed.author)」"
+    var unreadScope = scope
+    unreadScope.unread = true
     let epoch = generation
     do {
       let provider = try provider(for: endpoint)
@@ -24,7 +29,7 @@ extension AlbumStore {
       var cursor: String?
       repeat {
         let since = queue.revision
-        let page = try await provider.entries(EntryScope(feedId: feed.id, unread: true), cursor: cursor, limit: 500)
+        let page = try await provider.entries(unreadScope, cursor: cursor, limit: 500)
         guard epoch == generation else { return }
         let parsed = await EntryParser.parseAll(page.entries, server: endpoint.server, mediaOrigin: endpoint.mediaOrigin)
         guard epoch == generation else { return }

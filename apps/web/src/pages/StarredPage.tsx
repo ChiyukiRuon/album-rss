@@ -13,7 +13,7 @@ export function StarredPage() {
     <>
       <PageHeader
         title="收藏"
-        subtitle={`${list.ids.length}${list.hasMore ? '+' : ''} 个图集 · 收藏会同步到你的 RSS 服务`}
+        subtitle={`${list.ids.length}${list.hasMore ? '+' : ''} 个图集`}
         toolbar={
           <ModeSwitch
             mode={mode}
@@ -30,7 +30,7 @@ export function StarredPage() {
           <EmptyState
             icon={<StarIcon aria-hidden />}
             title="还没有收藏"
-            description="在查看器里点星标或按 S，就能收藏整个图集。收藏会同步到你的 RSS 服务，其他设备上也能看到。"
+            description="在查看图片时点击星标或按 S 以收藏图集。收藏会同步到你的 RSS 服务。"
           />
         }
       />

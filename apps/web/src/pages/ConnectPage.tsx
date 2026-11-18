@@ -26,8 +26,8 @@ export function ConnectPage() {
         <Wordmark />
         <h1 className={styles.title}>连接你的 RSS 服务</h1>
         <p className={styles.lead}>
-          Album RSS 把订阅里的插画和照片整理成图集。它直接在浏览器里连接你已有的 Miniflux 或 Google
-          Reader 兼容服务，不经过任何中转服务器。
+          Album RSS 专为浏览图片设计。它直接连接你已有的 Miniflux 或 Google Reader
+          兼容服务，不经过任何中转服务器。
         </p>
 
         {endpoints.length > 0 && <SavedEndpoints disabled={busy} />}
@@ -48,11 +48,9 @@ export function ConnectPage() {
             navigate('/', { replace: true })
           }}
         >
-          先用演示数据看看
+          使用演示数据查看
         </button>
-        <p className={styles.footnote}>
-          连接后先读取订阅和最新一页文章，更早的文章在浏览时按需读取；已读与收藏会回写到服务。
-        </p>
+        <p className={styles.footnote}>已读与收藏会同步到对应的 RSS 服务。</p>
       </div>
 
       <PreviewWall />

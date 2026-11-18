@@ -45,7 +45,7 @@ function RequireEndpoint() {
       <EmptyState
         icon={<CircleNotchIcon />}
         title="正在同步订阅和图集…"
-        description="正在读取订阅和最新一页文章，更早的文章会在浏览时按需读取。"
+        description=""
       />
     )
   return endpoint ? <AppShell /> : <Navigate to="/connect" replace />

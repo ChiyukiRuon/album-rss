@@ -26,18 +26,18 @@ export function DownloadButton({
   const state = useApp((s) => s.downloads[downloadKey])
   const images = assets.filter((image) => image.kind !== 'video')
   if (!images.length) return null
-  const idleLabel = images.length > 1 ? `下载图集（${images.length} 张）` : '下载图片'
+  const idleLabel = images.length > 1 ? `保存图集（${images.length} 张）` : '保存图片'
 
   let label = idleLabel
   let icon = <DownloadSimpleIcon aria-hidden />
   if (state?.status === 'running') {
-    label = `正在下载 ${state.done}/${state.total}`
+    label = `正在保存 ${state.done}/${state.total}`
     icon = <ProgressRing done={state.done} total={state.total} />
   } else if (state?.status === 'done') {
-    label = '已下载'
+    label = '已保存'
     icon = <CheckIcon aria-hidden weight="bold" className={styles.done} />
   } else if (state?.status === 'blocked') {
-    label = images.length > 1 ? '这些图片无法直接下载' : '这张图片无法直接下载'
+    label = images.length > 1 ? '这些图片保存失败' : '这张图片保存失败'
     icon = <WarningCircleIcon aria-hidden className={styles.blocked} />
   }
 

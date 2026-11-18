@@ -59,6 +59,12 @@ export function GalleryCard({
   const image = entry.images[index]
   const author = feed?.author ?? entry.author
   const cardKey = cardKeyOf(entry.id, imageIndex)
+  const title = entry.title.trim() || '无标题'
+  const position =
+    imageIndex === null
+      ? `${entry.images.length} 张图片`
+      : `第 ${index + 1} 张，共 ${entry.images.length} 张`
+  const mediaLabel = `${author}：${title}，${position}${entry.starred ? '，已收藏' : ''}${entry.read ? '，已读' : ''}`
 
   return (
     <article
@@ -84,7 +90,7 @@ export function GalleryCard({
               event.preventDefault()
               onOpen({ entry, index }, null)
             }}
-            aria-label={`播放视频：${entry.title}`}
+            aria-label={mediaLabel}
           >
             <Tone className={styles.fill} />
             {image.poster && (
@@ -125,7 +131,7 @@ export function GalleryCard({
           image={image}
           index={index}
           single={imageIndex !== null}
-          author={author}
+          label={mediaLabel}
           info={info}
           href={href}
           onOpen={onOpen}
@@ -134,7 +140,11 @@ export function GalleryCard({
         <TextMedia entry={entry} height={info.mediaHeight} />
       )}
       <footer className={styles.meta}>
-        <Link to={feedPath(entry.feedId)} className={styles.author}>
+        <Link
+          to={feedPath(entry.feedId)}
+          className={styles.author}
+          aria-label={`查看${author}的订阅`}
+        >
           <Avatar src={feed?.iconUrl} name={author} size={20} />
           <span className={styles.name}>{author}</span>
           {category && <span className={styles.category}>{category}</span>}
@@ -157,13 +167,13 @@ interface CoverMediaProps {
   image: ImageAsset
   index: number
   single: boolean
-  author: string
+  label: string
   info: TileInfo
   href: string
   onOpen: GalleryCardProps['onOpen']
 }
 
-function CoverMedia({ entry, image, index, single, author, info, href, onOpen }: CoverMediaProps) {
+function CoverMedia({ entry, image, index, single, label, info, href, onOpen }: CoverMediaProps) {
   const { src, imageKey, status, onLoad, onError, retry } = useCardImage(image.url, info.failed)
   const count = entry.images.length
   const title = entry.title.trim()
@@ -175,10 +185,6 @@ function CoverMedia({ entry, image, index, single, author, info, href, onOpen }:
     event.preventDefault()
     onOpen({ entry, index }, event.currentTarget.querySelector('img'))
   }
-
-  const label = single
-    ? `${author}：${title || '无标题'}，第 ${index + 1} 张，共 ${count} 张`
-    : `${author}：${title || '无标题'}，${count} 张图片`
 
   return (
     <div className={styles.mediaWrap} style={{ height: info.mediaHeight }} data-status={status}>
@@ -247,7 +253,7 @@ function CoverMedia({ entry, image, index, single, author, info, href, onOpen }:
         />
         {status === 'error' && (
           <IconButton
-            label="重新加载图片"
+            label="重新加载"
             icon={<ArrowClockwiseIcon aria-hidden />}
             variant="glass"
             size="sm"

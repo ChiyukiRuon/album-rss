@@ -110,6 +110,9 @@ struct EntryWall<Header: View, Empty: View>: View {
         }
       } else if !layout.remoteMore {
         empty()
+          .onChange(of: canShowPendingUnread, initial: true) { _, available in
+            if available { app.store.applyPending() }
+          }
       } else {
         canvas(layout)
       }
@@ -130,6 +133,18 @@ struct EntryWall<Header: View, Empty: View>: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
       }
+    }
+  }
+
+  private var canShowPendingUnread: Bool {
+    guard showsNewItems, query.status == .unread else { return false }
+    let store = app.store
+    return store.sync.pendingIDs.contains { id in
+      guard let entry = store.entries[id],
+        Selectors.isVisible(entry, in: query, showImageless: mode == .albums && store.settings.showImageless)
+      else { return false }
+      guard let folderID = query.folderId else { return true }
+      return store.feeds.contains { $0.id == entry.feedId && $0.folderIds.contains(folderID) }
     }
   }
 

@@ -7,6 +7,7 @@ struct BrowseView: View {
   @State private var statusOverride: ListStatus?
   @State private var mode: WallMode = .albums
   @State private var folderID: String?
+  @State private var confirmingMarkRead = false
 
   private var status: ListStatus { statusOverride ?? app.store.settings.defaultStatus }
 
@@ -18,6 +19,7 @@ struct BrowseView: View {
     let counts = Selectors.unreadCounts(
       entries: store.entries, feeds: store.feeds, serverCounts: store.unread, showImageless: store.settings.showImageless)
     let unread = folder.map { counts.byFolder[$0.id] ?? 0 } ?? counts.total
+    let scopeLabel = folder.map { "「\($0.title)」" } ?? "全部订阅"
     EntryWall(
       query: query,
       mode: mode,
@@ -48,7 +50,21 @@ struct BrowseView: View {
     }
     .tabPageTitle("浏览")
     .toolbar {
-      ToolbarItem(placement: .topBarTrailing) { SyncToolbarButton() }
+      ToolbarItemGroup(placement: .topBarTrailing) {
+        SyncToolbarButton()
+        Button("全部标为已读", systemImage: "checkmark.circle") { confirmingMarkRead = true }
+          .disabled(unread == 0)
+      }
+    }
+    .confirmationDialog(
+      "将 \(unread) 个未读图集标为已读？",
+      isPresented: $confirmingMarkRead,
+      titleVisibility: .visible
+    ) {
+      Button("标为已读") {
+        Task { await store.markScopeRead(EntryScope(folderId: folder?.id), label: scopeLabel) }
+      }
+      Button("取消", role: .cancel) {}
     }
   }
 

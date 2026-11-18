@@ -24,7 +24,7 @@ struct FeedView: View {
         EmptyStateView(
           systemImage: "checkmark.circle",
           title: status == .unread ? "「\(feed.author)」没有未读图集" : "还没有图集",
-          description: status == .unread ? "新作品同步到之后会出现在这里。" : "这个订阅里还没有包含图片的文章。"
+          description: status == .unread ? "新图集同步后会出现在这里。" : "这个订阅里还没有包含图片的文章。"
         ) {
           if status == .unread {
             Button("查看全部") { statusOverride = .all }.buttonStyle(InkButtonStyle())
@@ -49,7 +49,7 @@ struct FeedView: View {
         }
       }
       .confirmationDialog(
-        "将「\(feed.author)」的 \(unread) 个未读图集标为已读？之后可以撤销。",
+        "将「\(feed.author)」的 \(unread) 个未读图集标为已读？",
         isPresented: $confirmingMarkRead,
         titleVisibility: .visible
       ) {
@@ -94,7 +94,7 @@ struct FeedView: View {
       if feed.parsingErrorCount > 0 {
         Banner(
           title: "最近 \(feed.parsingErrorCount) 次抓取失败",
-          message: "\(feed.parsingError ?? "订阅源暂时无法抓取")。下面是之前同步到的内容，RSS 服务会继续按计划重试。"
+          message: "\(feed.parsingError ?? "订阅源暂时无法抓取")。"
         ) {
           if store.canRefreshFeeds {
             Button("重试") { Task { await store.refreshFeed(feed.id) } }

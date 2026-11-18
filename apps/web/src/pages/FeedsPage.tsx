@@ -1,6 +1,7 @@
-import { WarningCircleIcon } from '@phosphor-icons/react'
+import { RssIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { EmptyState } from '../components/page/EmptyState'
 import { PageHeader } from '../components/page/PageHeader'
 import { Avatar } from '../components/ui/Avatar'
 import { ImageThumb } from '../components/ui/ImageThumb'
@@ -84,6 +85,13 @@ export function FeedsPage() {
           ) : undefined
         }
       />
+      {feeds.length === 0 && (
+        <EmptyState
+          icon={<RssIcon aria-hidden />}
+          title="还没有订阅"
+          description="在 RSS 服务里添加订阅，同步后即可在这里查看。"
+        />
+      )}
       {(active ? [active] : groups).map((group) => (
         <section key={group.id} className={styles.group} aria-labelledby={`folder-${group.id}`}>
           <h2 id={`folder-${group.id}`} className={styles.groupTitle}>

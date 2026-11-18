@@ -138,7 +138,7 @@ struct EndpointFields: View {
     Section {
       Picker("服务类型", selection: $model.service) {
         Text("Miniflux").tag(ServiceKind.miniflux)
-        Text("Google Reader 兼容").tag(ServiceKind.greader)
+        Text("Google Reader").tag(ServiceKind.greader)
       }
       .pickerStyle(.segmented)
       .listRowBackground(Color.clear)
@@ -220,7 +220,7 @@ struct EndpointFields: View {
         if model.service == .miniflux {
           Text("服务公开地址：通过局域网地址连接时，可填写 Miniflux 配置的公开地址，将其 /proxy/ 图片指向当前服务。")
         }
-        Text("凭据保存在本机钥匙串，删除这个端点时清除。关闭后只保存在内存中，App 退出后这个端点会被移除。")
+        Text("凭据保存在本机钥匙串，删除这个端点时清除。若选择不保存凭据，则 App 退出后这个端点会被移除。")
       }
     }
 
@@ -249,15 +249,15 @@ struct EndpointFields: View {
             }
             VStack(alignment: .leading, spacing: 4) {
               Text("可能的原因：").font(.system(size: 13, weight: .semibold))
-              Text("· 这台设备访问不到这个地址。可以在 Safari 里打开 \(attempt.origin) 确认。")
+              Text("· 这台设备无法访问这个地址。可以在 Safari 里打开 \(attempt.origin) 确认。")
               Text("· 服务器证书无效或已过期。")
               if attempt.local {
                 Text("· 这是局域网地址：请在系统“设置 → 隐私与安全性 → 本地网络”中允许 Album RSS，并确认设备和服务在同一网络。")
               }
               Text(
                 model.service == .miniflux
-                  ? "· 服务不是 Miniflux，或地址多了、少了子路径。"
-                  : "· 服务类型或 API 路径不对：地址需要包含协议入口，例如 FreshRSS 的 /api/greader.php。")
+                  ? "· 服务不是 Miniflux，或地址填写错误。"
+                  : "· 服务类型或 API 路径错误。")
             }
             .font(.system(size: 13))
             .foregroundStyle(Color.ink2)

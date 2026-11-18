@@ -128,7 +128,7 @@ struct SyncBanners: View {
   var body: some View {
     let store = app.store
     if let endpoint = store.endpoint, let message = store.writeErrors[endpoint.id] {
-      Banner(title: "已读和收藏暂时无法写入服务", message: message) {
+      Banner(title: "同步已读与收藏时遇到错误", message: message) {
         Button("编辑端点") { app.endpointSheet = .edit(endpoint.id) }
           .buttonStyle(InkButtonStyle(prominent: true))
       }

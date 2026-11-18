@@ -16,7 +16,7 @@ struct RootView: View {
       if store.endpoint == nil {
         ConnectView()
       } else if !store.loaded {
-        LoadingView(title: "正在同步订阅和图集…", description: "正在读取订阅和最新一页文章，更早的文章会在浏览时按需读取。")
+        LoadingView(title: "正在同步订阅和图集…", description: "")
       } else {
         MainTabView()
       }

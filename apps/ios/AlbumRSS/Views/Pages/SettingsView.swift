@@ -29,7 +29,7 @@ struct SettingsView: View {
       } header: {
         Text("API 端点")
       } footer: {
-        Text("每个端点分别保存地址、凭据，以及是否把凭据保存在钥匙串里。已读和收藏会同步到对应的 RSS 服务。")
+        Text("每个端点的设置独立保存。已读和收藏会同步到对应的 RSS 服务。")
       }
 
       Section("浏览") {
@@ -138,7 +138,14 @@ struct SettingsView: View {
         Button {
           app.open("https://github.com/ChiyukiRuon/album-rss")
         } label: {
-          Label("ChiyukiRuon/album-rss", systemImage: "chevron.left.forwardslash.chevron.right")
+          Label {
+            Text("ChiyukiRuon/album-rss")
+          } icon: {
+            Image("GitHubMark")
+              .resizable()
+              .scaledToFit()
+              .frame(width: 22, height: 22)
+          }
         }
       }
     }
@@ -147,8 +154,8 @@ struct SettingsView: View {
     .confirmationDialog(
       removing.map { endpoint in
         endpoint.id == store.endpoint?.id
-          ? "删除正在使用的端点「\(endpoint.label)」及其保存的凭据？之后会切换到下一个端点；已同步到服务器的已读和收藏不受影响。"
-          : "删除端点「\(endpoint.label)」及其保存的凭据？已同步到服务器的已读和收藏不受影响。"
+          ? "删除正在使用的端点「\(endpoint.label)」及其保存的凭据？这不会更改已同步到服务器的已读和收藏。"
+          : "删除端点「\(endpoint.label)」及其保存的凭据？这不会更改已同步到服务器的已读和收藏。"
       } ?? "",
       isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
       titleVisibility: .visible
@@ -165,7 +172,7 @@ struct SettingsView: View {
     let detail = [
       endpoint.service.label,
       endpoint.name == nil ? nil : endpoint.host,
-      endpoint.remember ? "凭据保存在钥匙串" : "仅本次运行，退出后移除",
+      endpoint.remember ? "将凭据保存至钥匙串" : "仅本次运行，退出后移除",
     ].compactMap { $0 }.joined(separator: " · ")
     return Button {
       guard !current else { return }

@@ -372,7 +372,7 @@ struct DownloadButton: View {
     switch state?.status {
     case .running: "正在保存 \(state?.done ?? 0)/\(state?.total ?? 0)"
     case .done: "已保存"
-    case .blocked: photos.count > 1 ? "这些图片没能保存" : "这张图片没能保存"
+    case .blocked: photos.count > 1 ? "这些图片保存失败" : "这张图片保存失败"
     case nil: photos.count > 1 ? "保存图集（\(photos.count) 张）" : "保存图片"
     }
   }

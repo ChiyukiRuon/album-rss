@@ -81,9 +81,10 @@ function VideoStage({ image, entryUrl, onShown, onNextGroup }: StageProps) {
     <div className={styles.stage} style={{ display: 'grid', placeItems: 'center' }}>
       {failed ? (
         <div role="alert">
-          <p>视频无法播放，可能是格式不受支持或源站限制。</p>
+          <p>媒体加载失败</p>
+          <p>可能是源站暂时无法访问，地址已经失效或格式不受支持。</p>
           <a href={image.url} target="_blank" rel="noopener noreferrer">
-            打开视频
+            打开媒体链接
           </a>
           {' · '}
           <a href={entryUrl} target="_blank" rel="noopener noreferrer">
@@ -408,8 +409,8 @@ function ImageStage({ image, entryUrl, onShown, onPrev, onNext, onDismiss, onTap
         {status === 'error' && (
           <div className={styles.error} role="alert">
             <ImageBrokenIcon aria-hidden className={styles.errorIcon} />
-            <p className={styles.errorTitle}>这张图片加载失败</p>
-            <p className={styles.errorHint}>可能是源站暂时无法访问，或者图片地址已经失效。</p>
+            <p className={styles.errorTitle}>媒体加载失败</p>
+            <p className={styles.errorHint}>可能是源站暂时无法访问，地址已经失效或格式不受支持。</p>
             <div className={styles.errorActions}>
               <Button
                 size="sm"
@@ -428,7 +429,7 @@ function ImageStage({ image, entryUrl, onShown, onPrev, onNext, onDismiss, onTap
                 icon={<ArrowSquareOutIcon aria-hidden />}
                 onClick={() => void openImage(image.url)}
               >
-                打开原图
+                打开媒体链接
               </Button>
               <Button
                 size="sm"

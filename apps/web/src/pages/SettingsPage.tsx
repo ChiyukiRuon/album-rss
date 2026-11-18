@@ -21,10 +21,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader
-        title="设置"
-        subtitle="这些设置只保存在这台设备上；已读和收藏会同步到你的 RSS 服务。"
-      />
+      <PageHeader title="设置" subtitle="这些设置只保存在这台设备上。" />
       <div className={styles.page}>
         <Section title="API 端点">
           {endpoint?.kind === 'demo' && (
@@ -46,7 +43,7 @@ export function SettingsPage() {
           ))}
           <Row
             label="添加 API 端点"
-            description="每个端点分别保存地址、凭据，以及是否把凭据保存在这个浏览器里。"
+            description="每个端点的设置独立保存。已读和收藏会同步到对应的 RSS 服务。"
           >
             <Button
               size="sm"
@@ -66,8 +63,8 @@ export function SettingsPage() {
             onChange={(autoRead) => actions.updateSettings({ autoRead })}
           />
           <SwitchRow
-            label="下载成功后标为已读"
-            description="本次下载的图片全部成功后，将所属图集标为已读。"
+            label="保存后标为已读"
+            description="本次保存的图片全部成功后，将所属图集标为已读。"
             checked={settings.downloadRead}
             onChange={(downloadRead) => actions.updateSettings({ downloadRead })}
           />
@@ -201,7 +198,7 @@ export function SettingsPage() {
           <Section title="图片保存">
             <Row
               label="保存到设备"
-              description="下载按钮会尝试直接保存原图；来源限制跨域读取时，可打开原图后右键或长按保存。"
+              description="保存按钮会尝试直接保存原图；来源限制跨域读取时，可打开原图后右键或长按保存。"
             />
           </Section>
         )}
@@ -302,8 +299,8 @@ function EndpointRow({ endpoint, current }: { endpoint: Endpoint; current: boole
         variant="danger"
         message={
           current
-            ? '删除正在使用的端点及其在浏览器中保存的凭据？之后会切换到下一个端点；已同步到服务器的已读和收藏不受影响。'
-            : '删除这个端点及其在浏览器中保存的凭据？已同步到服务器的已读和收藏不受影响。'
+            ? `删除正在使用的端点「${endpointLabel(endpoint)}」及其保存的凭据？这不会更改已同步到服务器的已读和收藏。`
+            : `删除端点「${endpointLabel(endpoint)}」及其保存的凭据？这不会更改已同步到服务器的已读和收藏。`
         }
         confirmLabel="删除端点"
         onConfirm={() => void actions.removeEndpoint(endpoint.id)}

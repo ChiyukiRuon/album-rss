@@ -282,7 +282,7 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
           .catch(() => showToast({ message: '无法访问剪贴板', tone: 'warning' })),
     },
     {
-      label: '分享…',
+      label: '分享原文链接',
       icon: <ShareNetworkIcon aria-hidden />,
       hidden: typeof navigator.share !== 'function',
       onSelect: () =>
@@ -328,7 +328,11 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
             variant="viewer"
             onClick={close}
           />
-          <Link to={feedPath(entry.feedId)} className={styles.author}>
+          <Link
+            to={feedPath(entry.feedId)}
+            className={styles.author}
+            aria-label={`${author}，查看订阅`}
+          >
             <Avatar src={feed?.iconUrl} name={author} size={32} />
             <span className={styles.authorText}>
               <span className={styles.authorName}>

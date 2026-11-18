@@ -18,7 +18,7 @@ struct ConnectView: View {
             Text("连接你的 RSS 服务")
               .font(.system(size: 28, weight: .bold))
               .foregroundStyle(Color.ink)
-            Text("Album RSS 把订阅里的插画和照片整理成图集。它直接连接你已有的 Miniflux 或 Google Reader 兼容服务，不经过任何中转服务器。")
+            Text("Album RSS 专为浏览图片设计。它直接连接你已有的 Miniflux 或 Google Reader 兼容服务，不经过任何中转服务器。")
               .font(.system(size: 15))
               .foregroundStyle(Color.ink2)
           }
@@ -69,7 +69,7 @@ struct ConnectView: View {
           .listRowBackground(Color.clear)
           .listRowInsets(EdgeInsets())
 
-          Button("先用演示数据看看") { app.store.enterDemo() }
+          Button("使用演示数据查看") { app.store.enterDemo() }
             .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(Color.ink)
             .frame(maxWidth: .infinity)
@@ -77,7 +77,7 @@ struct ConnectView: View {
             .listRowBackground(Color.clear)
             .accessibilityIdentifier("enter-demo")
         } footer: {
-          Text("连接后先读取订阅和最新一页文章，更早的文章在浏览时按需读取；已读与收藏会回写到服务。")
+          Text("已读与收藏会同步到对应的 RSS 服务。")
             .frame(maxWidth: .infinity, alignment: .center)
             .multilineTextAlignment(.center)
         }

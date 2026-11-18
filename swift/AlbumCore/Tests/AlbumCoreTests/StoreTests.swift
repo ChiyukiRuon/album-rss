@@ -228,15 +228,22 @@ import Testing
     #expect(store.scopes[unreadQuery]?.ids == ["9", "1"])
   }
 
-  @Test func marksEveryUnreadArticleOfAFeedIncludingUnloadedOnesWithUndo() async throws {
+  @Test(arguments: [EntryScope(feedId: "2"), EntryScope(folderId: "3"), EntryScope()])
+  func marksEveryUnreadPageInScopeWithUndo(scope: EntryScope) async throws {
     let harness = Harness()
     harness.provider.unreadHandler = { ["2": 3] }
     let store = harness.makeStore()
     try await store.connect(input)
     harness.provider.onceEntries { _, _, _ in page(["1", "5"], cursor: "5") }
     harness.provider.onceEntries { _, _, _ in page(["6"]) }
-    await store.markFeedRead(try #require(store.feeds.first))
-    #expect(harness.provider.entriesCalls.last == .init(scope: EntryScope(feedId: "2", unread: true), cursor: "5", limit: 500))
+    if scope.feedId != nil {
+      await store.markFeedRead(try #require(store.feeds.first))
+    } else {
+      await store.markScopeRead(scope, label: "测试范围")
+    }
+    var expected = scope
+    expected.unread = true
+    #expect(harness.provider.entriesCalls.last == .init(scope: expected, cursor: "5", limit: 500))
     #expect(store.unread == ["2": 0])
     await waitUntil { harness.provider.setReadCalls.contains { Set($0.0) == ["1", "5", "6"] && $0.1 } }
     await waitUntil { store.pendingWrites == 0 }
