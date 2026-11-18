@@ -333,7 +333,7 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
             className={styles.author}
             aria-label={`${author}，查看订阅`}
           >
-            <Avatar src={feed?.iconUrl} name={author} size={32} />
+            <Avatar feed={feed} name={author} size={32} />
             <span className={styles.authorText}>
               <span className={styles.authorName}>
                 {author}
@@ -400,11 +400,7 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
           <CaretLeftIcon aria-hidden weight="bold" />
           {atStart && prevEntry && (
             <>
-              <Avatar
-                src={feeds.get(prevEntry.feedId)?.iconUrl}
-                name={prevEntry.author}
-                size={24}
-              />
+              <Avatar feed={feeds.get(prevEntry.feedId)} name={prevEntry.author} size={24} />
               <span>上一组</span>
             </>
           )}
@@ -420,11 +416,7 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
           {atEnd && nextEntry && (
             <>
               <span>下一组</span>
-              <Avatar
-                src={feeds.get(nextEntry.feedId)?.iconUrl}
-                name={nextEntry.author}
-                size={24}
-              />
+              <Avatar feed={feeds.get(nextEntry.feedId)} name={nextEntry.author} size={24} />
             </>
           )}
           <CaretRightIcon aria-hidden weight="bold" />
@@ -477,7 +469,7 @@ function ViewerOverlay({ entryId, index: requestedIndex }: { entryId: string; in
             {notice.entry ? (
               <>
                 <Avatar
-                  src={feeds.get(notice.entry.feedId)?.iconUrl}
+                  feed={feeds.get(notice.entry.feedId)}
                   name={notice.entry.author}
                   size={22}
                 />

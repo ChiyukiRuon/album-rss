@@ -7,7 +7,7 @@ extension AlbumStore {
     guard !targets.isEmpty else { return }
     setRead(targets, true)
     toasts.show(
-      "已将\(scopeLabel)的 \(targets.count) 个图集标为已读",
+      "已将 \(targets.count) 个图集标为已读",
       tone: .success,
       action: ToastCenter.Action(label: "撤销") { [weak self] in self?.setRead(targets, false) }
     )
@@ -129,7 +129,7 @@ extension AlbumStore {
       let done = counter.value
       setState(DownloadState(status: .blocked, done: done, total: total))
       toasts.show(
-        done > 0 ? "已保存 \(done) 张，其余图片没能保存" : "图片没能保存",
+        done > 0 ? "已保存 \(done) 张" : "图片没能保存",
         detail: errorMessage(error),
         tone: .warning,
         action: fallback

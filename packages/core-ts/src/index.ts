@@ -12,6 +12,8 @@ export interface Feed {
   title: string
   author: string
   siteUrl: string
+  feedUrl?: string
+  iconId?: number
   iconUrl: string
   folderIds: string[]
   checkedAt: number

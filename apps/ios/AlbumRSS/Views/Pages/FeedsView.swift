@@ -103,7 +103,7 @@ private struct FeedTile: View {
       }
       .aspectRatio(3, contentMode: .fit)
       HStack(spacing: 12) {
-        AvatarView(url: feed.iconURL, name: feed.author, size: 44)
+        AvatarView(feed: feed, name: feed.author, size: 44)
           .overlay { Circle().strokeBorder(Color.paper, lineWidth: 3) }
           .padding(.top, -26)
         VStack(alignment: .leading, spacing: 2) {

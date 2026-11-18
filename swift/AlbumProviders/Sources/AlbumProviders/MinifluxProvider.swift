@@ -5,6 +5,7 @@ import Foundation
 struct MinifluxProvider: RSSProvider {
   let transport: Transport
   let token: String
+  let icons = MinifluxIconCache()
 
   private var headers: [String: String] { ["X-Auth-Token": token] }
 
@@ -47,7 +48,8 @@ struct MinifluxProvider: RSSProvider {
           title: title,
           author: title,
           siteURL: httpURL(feed["site_url"]?.string ?? ""),
-          iconURL: "",
+          feedURL: feed["feed_url"]?.string.map { httpURL($0) },
+          iconID: feed["icon"]?["icon_id"]?.text,
           folderIds: feed["category"]?["id"]?.text.map { [$0] } ?? [],
           checkedAt: parseTimestamp(feed["checked_at"]?.string),
           parsingErrorCount: Int(feed["parsing_error_count"]?.numberOrZero ?? 0),
@@ -55,6 +57,19 @@ struct MinifluxProvider: RSSProvider {
         )
       }
     )
+  }
+
+  func feedIcon(feedID: String, iconID: String) async -> String? {
+    guard let id = try? numericID(feedID) else { return nil }
+    return await icons.load(iconID) {
+      let request = Transport(server: transport.server, client: transport.client, gate: icons.gate)
+      guard let icon = try? await request.json("/v1/feeds/\(id)/icon", headers: headers),
+        icon["id"]?.text == nil || icon["id"]?.text == iconID,
+        let data = icon["data"]?.string,
+        data.wholeMatch(of: /(?i:image\/[a-z0-9.+-]+;base64,[a-z0-9+\/]+=*)/) != nil
+      else { return nil }
+      return "data:" + data
+    }
   }
 
   func unreadCounts() async throws -> [String: Int]? {
@@ -148,4 +163,18 @@ func numericID(_ id: String) throws -> Int64 {
     throw APIError("服务返回了不支持的 ID")
   }
   return Int64(value)
+}
+
+actor MinifluxIconCache {
+  let gate = RequestGate()
+  private var icons: [String: Task<String?, Never>] = [:]
+
+  func load(_ id: String, fetch: @escaping @Sendable () async -> String?) async -> String? {
+    if let cached = icons[id] { return await cached.value }
+    let task = Task { await fetch() }
+    icons[id] = task
+    let result = await task.value
+    if result == nil { icons[id] = nil }
+    return result
+  }
 }

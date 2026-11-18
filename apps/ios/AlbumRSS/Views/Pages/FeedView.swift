@@ -66,7 +66,7 @@ struct FeedView: View {
     let store = app.store
     VStack(alignment: .leading, spacing: 12) {
       HStack(alignment: .center, spacing: 14) {
-        AvatarView(url: feed.iconURL, name: feed.author, size: 64)
+        AvatarView(feed: feed, name: feed.author, size: 64)
           .overlay { Circle().strokeBorder(Color.line) }
         VStack(alignment: .leading, spacing: 4) {
           Text(feed.author)

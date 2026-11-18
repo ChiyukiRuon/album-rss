@@ -68,7 +68,7 @@ export function Rail() {
               className={({ isActive }) => cx(styles.feed, isActive && styles.active)}
               title={[feed.author, categoryOf(feed)].filter(Boolean).join(' · ')}
             >
-              <Avatar src={feed.iconUrl} name={feed.author} size={24} />
+              <Avatar feed={feed} name={feed.author} size={24} />
               <span className={styles.feedName}>{feed.author}</span>
               {feed.parsingErrorCount > 0 && (
                 <span className={styles.error} aria-label="抓取出错" />

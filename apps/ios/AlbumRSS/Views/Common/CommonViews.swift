@@ -6,7 +6,19 @@ import SwiftUI
 
 /// 订阅图标；没有图标或加载失败时显示名字的第一个字
 struct AvatarView: View {
-  var url: String?
+  var feed: Feed?
+  @Environment(AppModel.self) private var app
+  private struct IconKey: Hashable {
+    var endpoint: Endpoint
+    var iconID: String
+    var feedID: String
+  }
+  private var iconKey: IconKey? {
+    guard let endpoint = app.store.endpoint, let feed, let iconID = feed.iconID else { return nil }
+    return IconKey(endpoint: endpoint, iconID: iconID, feedID: feed.id)
+  }
+  @State private var service: (key: IconKey, url: String)?
+  @State private var original: (source: String, url: String)?
   var name: String
   var size: CGFloat = 20
   var dark = false
@@ -19,18 +31,46 @@ struct AvatarView: View {
       Text(name.first.map { String($0).uppercased() } ?? "?")
         .font(.system(size: size * 0.46, weight: .bold))
         .foregroundStyle(dark ? Color.viewerForeground : Color.ink2)
-      if let url, !url.isEmpty, let request = ImageRequests.thumbnail(url, size: CGSize(width: size, height: size)) {
+      serviceImage
+      if let original, original.source == feed?.feedURL,
+        let request = ImageRequests.thumbnail(original.url, size: CGSize(width: size, height: size))
+      {
         LazyImage(request: request) { state in
           if let image = state.image {
             image.resizable().scaledToFill()
+              .background(dark ? Color.viewerSurface2 : Color.paper3)
           }
         }
         .pipeline(pipeline)
       }
     }
+    .task(id: iconKey) {
+      guard let key = iconKey else { service = nil; return }
+      let url = await app.store.feedIcon(feedID: key.feedID, iconID: key.iconID)
+      guard !Task.isCancelled else { return }
+      service = url.map { (key, $0) }
+    }
+    .task(id: feed?.feedURL) {
+      guard let source = feed?.feedURL else { original = nil; return }
+      let url = await FeedAvatar.shared.originalURL(for: source)
+      guard !Task.isCancelled else { return }
+      original = url.map { (source, $0) }
+    }
     .frame(width: size, height: size)
     .clipShape(Circle())
     .accessibilityHidden(true)
+  }
+
+  @ViewBuilder private var serviceImage: some View {
+    let resolved = service?.key == iconKey ? service?.url : nil
+    if let url = resolved ?? feed?.iconURL, !url.isEmpty, let request = ImageRequests.thumbnail(url, size: CGSize(width: size, height: size)) {
+      LazyImage(request: request) { state in
+        if let image = state.image {
+          image.resizable().scaledToFill()
+        }
+      }
+      .pipeline(pipeline)
+    }
   }
 }
 
@@ -115,11 +155,10 @@ private struct ToastRow: View {
   let dismiss: () -> Void
 
   var body: some View {
-    HStack(alignment: .top, spacing: 10) {
+    HStack(spacing: 10) {
       Image(systemName: icon)
         .font(.system(size: 17, weight: .semibold))
         .foregroundStyle(color)
-        .padding(.top, 1)
       VStack(alignment: .leading, spacing: 2) {
         Text(toast.message)
           .font(.system(size: 14, weight: .semibold))

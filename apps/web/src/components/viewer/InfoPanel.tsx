@@ -26,7 +26,7 @@ export function InfoPanel({ entry, feed, category, image, index, onClose }: Info
     <aside className={styles.panel} aria-label="文章信息">
       <div className={styles.header}>
         <Link to={feedPath(entry.feedId)} className={styles.author}>
-          <Avatar src={feed?.iconUrl} name={author} size={40} />
+          <Avatar feed={feed} name={author} size={40} />
           <span className={styles.authorText}>
             <span className={styles.authorName}>{author}</span>
             <span className={styles.authorSub}>

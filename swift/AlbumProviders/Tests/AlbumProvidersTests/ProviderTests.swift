@@ -90,6 +90,34 @@ func fastGate() -> RequestGate { RequestGate(interval: .zero) }
     #expect(http.requests.allSatisfy { $0.url!.absoluteString.hasPrefix("https://rss.example.com/rss/v1/") })
   }
 
+  @Test func loadsSharedIconsOnceAndKeepsFeedsWithMissingIcons() async throws {
+    let http = StubHTTP { request in
+      #expect(request.value(forHTTPHeaderField: "X-Auth-Token") == "secret")
+      switch request.path {
+      case "/rss/v1/feeds":
+        return respond(request, json: [
+          ["id": 1, "icon": ["icon_id": 8]], ["id": 2, "icon": ["icon_id": 8]],
+          ["id": 3, "icon": NSNull()], ["id": 4, "icon": ["icon_id": 9]],
+        ])
+      case "/rss/v1/categories": return respond(request, json: [])
+      case "/rss/v1/feeds/1/icon": return respond(request, json: ["data": "image/x-icon;base64,AA=="])
+      default: return respond(request, status: 404)
+      }
+    }
+    let provider = try makeProvider(
+      service: .miniflux, server: "https://example.com/rss/", token: "secret", client: http, gate: fastGate())
+    let feeds = try await provider.subscriptions().feeds
+    let image = "data:image/x-icon;base64,AA=="
+    #expect(!http.requests.contains { $0.path.hasSuffix("/icon") })
+    #expect(feeds.map(\.iconID) == ["8", "8", nil, "9"])
+    #expect(await provider.feedIcon(feedID: "1", iconID: "8") == image)
+    _ = try await provider.subscriptions()
+    #expect(await provider.feedIcon(feedID: "2", iconID: "8") == image)
+    #expect(await provider.feedIcon(feedID: "4", iconID: "9") == nil)
+    #expect(http.requests.map(\.path).filter { $0.hasSuffix("/icon") }.sorted() ==
+      ["/rss/v1/feeds/1/icon", "/rss/v1/feeds/4/icon"])
+  }
+
   @Test func mapsScopesToFeedCategoryUnreadAndStarredQueries() async throws {
     let http = StubHTTP { respond($0, json: ["entries": []]) }
     let provider = try makeProvider(service: .miniflux, server: "https://example.com", token: "secret", client: http, gate: fastGate())

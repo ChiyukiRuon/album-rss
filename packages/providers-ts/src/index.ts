@@ -90,6 +90,7 @@ export interface ProviderOptions {
 export interface Provider {
   authenticate(): Promise<string>
   subscriptions(): Promise<Subscriptions>
+  feedIcon?(feedId: string, iconId: number): Promise<string>
   /** 各订阅的未读文章数，键为订阅 ID；服务不提供计数接口时为 null */
   unreadCounts(): Promise<Record<string, number> | null>
   /** 按范围分页读取文章，新的在前；cursor 来自上一页 */
@@ -178,6 +179,7 @@ interface MinifluxFeed {
   title: string
   site_url: string
   feed_url: string
+  icon?: { icon_id: number } | null
   category?: { id: number; title: string }
   checked_at: string
   parsing_error_count: number
@@ -220,8 +222,11 @@ function minifluxEntry(e: MinifluxEntry): RemoteEntry {
 }
 
 export function createProvider(options: ProviderOptions): Provider {
-  const request = transport(normalizeServer(options.server), options.fetch, options.gate)
+  const server = normalizeServer(options.server)
+  const request = transport(server, options.fetch, options.gate)
   if (options.service === 'greader') return googleReader(request, options.token)
+  const icons = new Map<number, Promise<string>>()
+  const iconRequest = transport(server, options.fetch)
   const headers = { 'X-Auth-Token': options.token }
   const get = async <T>(path: string) => json<T>(await request(path, { headers }))
   const put = async (path: string, body?: unknown) => {
@@ -248,6 +253,8 @@ export function createProvider(options: ProviderOptions): Provider {
         title: f.title,
         author: f.title,
         siteUrl: httpUrl(f.site_url),
+        feedUrl: httpUrl(f.feed_url ?? '') || undefined,
+        iconId: f.icon?.icon_id,
         iconUrl: '',
         folderIds: f.category ? [String(f.category.id)] : [],
         checkedAt: Date.parse(f.checked_at) || 0,
@@ -255,6 +262,22 @@ export function createProvider(options: ProviderOptions): Provider {
         parsingError: f.parsing_error_message || undefined,
       }))
       return { feeds, folders: categories.map((c) => ({ id: String(c.id), title: c.title })) }
+    },
+    async feedIcon(feedId, iconId) {
+      const cached = icons.get(iconId)
+      if (cached) return cached
+      const result = iconRequest(`/v1/feeds/${numericId(feedId)}/icon`, { headers })
+        .then(json<{ id?: number; data: string }>)
+        .then(({ id, data }) =>
+          (id === undefined || id === iconId) &&
+          /^image\/[a-z0-9.+-]+;base64,[a-z0-9+/]+=*$/i.test(data)
+            ? `data:${data}`
+            : '',
+        )
+        .catch(() => '')
+      icons.set(iconId, result)
+      if (!(await result)) icons.delete(iconId)
+      return result
     },
     unreadCounts: () =>
       optional(async () => {

@@ -45,4 +45,6 @@ Place Vitest tests beside implementation files as `*.test.ts`, using `describe`,
 
 The single baseline commit uses a Chinese description and establishes no recurring convention. Use Conventional Commits going forward, such as `fix(providers): correct pagination cursor`. Do not commit or push unless explicitly requested.
 
+Keep local Apple signing team identifiers out of commits. When staging `apps/ios/AlbumRSS.xcodeproj/project.pbxproj`, exclude changes to `DEVELOPMENT_TEAM` and `DevelopmentTeam` while preserving other project edits. Verify the staged diff before committing.
+
 PRs should explain the behavior change, link relevant issues, report validation commands and results, and include screenshots for UI changes. Keep credentials and local verification artifacts out of commits.

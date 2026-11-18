@@ -356,6 +356,10 @@ function providerFor(endpoint: Endpoint): Provider {
   return provider
 }
 
+export function loadServiceIcon(endpoint: Endpoint, feedId: string, iconId: number) {
+  return providerFor(endpoint).feedIcon?.(feedId, iconId)
+}
+
 /** 合并服务端返回的文章；本地还没确认的已读、收藏改动优先 */
 function mergeEntries(
   current: Record<string, Entry>,
@@ -663,7 +667,7 @@ export const actions = {
     if (targets.length === 0) return
     actions.setRead(targets, true)
     showToast({
-      message: `已将${scopeLabel}的 ${targets.length} 个图集标为已读`,
+      message: `已将 ${targets.length} 个图集标为已读`,
       tone: 'success',
       action: { label: '撤销', run: () => actions.setRead(targets, false) },
     })

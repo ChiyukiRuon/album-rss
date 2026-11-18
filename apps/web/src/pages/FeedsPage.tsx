@@ -125,7 +125,7 @@ function FeedTile({ feed, unread, covers }: { feed: Feed; unread: number; covers
         ))}
       </span>
       <span className={styles.body}>
-        <Avatar src={feed.iconUrl} name={feed.author} size={44} className={styles.avatar} />
+        <Avatar feed={feed} name={feed.author} size={44} className={styles.avatar} />
         <span className={styles.text}>
           <span className={styles.name}>{feed.author}</span>
           <span className={styles.meta}>

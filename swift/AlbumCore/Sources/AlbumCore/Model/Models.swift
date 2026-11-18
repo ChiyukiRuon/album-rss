@@ -23,6 +23,8 @@ public struct Feed: Codable, Hashable, Sendable, Identifiable {
   public var author: String
   /// 网站地址；无效时为空字符串
   public var siteURL: String
+  public var feedURL: String?
+  public var iconID: String?
   public var iconURL: String
   public var folderIds: [String]
   /// 最近一次抓取时间；服务不提供时为空
@@ -35,6 +37,8 @@ public struct Feed: Codable, Hashable, Sendable, Identifiable {
     title: String,
     author: String,
     siteURL: String = "",
+    feedURL: String? = nil,
+    iconID: String? = nil,
     iconURL: String = "",
     folderIds: [String] = [],
     checkedAt: Date? = nil,
@@ -45,6 +49,8 @@ public struct Feed: Codable, Hashable, Sendable, Identifiable {
     self.title = title
     self.author = author
     self.siteURL = siteURL
+    self.feedURL = feedURL
+    self.iconID = iconID
     self.iconURL = iconURL
     self.folderIds = folderIds
     self.checkedAt = checkedAt

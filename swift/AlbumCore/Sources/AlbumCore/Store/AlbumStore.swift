@@ -159,6 +159,11 @@ public final class AlbumStore {
     return provider
   }
 
+  public func feedIcon(feedID: String, iconID: String) async -> String? {
+    guard let endpoint, let provider = try? provider(for: endpoint) else { return nil }
+    return await provider.feedIcon(feedID: feedID, iconID: iconID)
+  }
+
   func persistEndpoints() {
     let remembered = endpoints.filter(\.remember).map { endpoint -> Endpoint in
       var copy = endpoint

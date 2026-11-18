@@ -30,6 +30,7 @@ public struct APIError: Error, Equatable, Sendable, LocalizedError {
 public protocol RSSProvider: Sendable {
   /// 验证凭据和服务类型；返回服务端的用户名（没有时为空串）
   func authenticate() async throws -> String
+  func feedIcon(feedID: String, iconID: String) async -> String?
   func subscriptions() async throws -> Subscriptions
   /// 各订阅的未读文章数，键为订阅 ID；服务不提供计数接口时为 nil
   func unreadCounts() async throws -> [String: Int]?
@@ -43,6 +44,8 @@ public protocol RSSProvider: Sendable {
 }
 
 extension RSSProvider {
+  public func feedIcon(feedID: String, iconID: String) async -> String? { nil }
+
   public var supportsRefresh: Bool { false }
 
   public func refreshFeed(_ id: String) async throws {

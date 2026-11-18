@@ -67,6 +67,43 @@ describe('Miniflux', () => {
     expect(calls.every((url) => url.href.startsWith('https://rss.example.com/rss/v1/'))).toBe(true)
   })
 
+  it('loads shared icons once and keeps feeds whose icon is missing or unavailable', async () => {
+    const icons: string[] = []
+    const provider = createProvider({
+      service: 'miniflux',
+      server: 'https://example.com/rss/',
+      token: 'secret',
+      gate: gate(),
+      fetch: async (url, init) => {
+        expect(init?.headers).toMatchObject({ 'X-Auth-Token': 'secret' })
+        const path = new URL(String(url)).pathname
+        if (path.endsWith('/categories')) return response([])
+        if (path.endsWith('/feeds'))
+          return response(
+            [8, 8, null, 9].map((id, i) => ({
+              id: i + 1,
+              site_url: '',
+              icon: id && { icon_id: id },
+            })),
+          )
+        icons.push(path)
+        return path.endsWith('/1/icon')
+          ? response({ data: 'image/x-icon;base64,AA==' })
+          : new Response(null, { status: 404 })
+      },
+    })
+    const { feeds } = await provider.subscriptions()
+    const image = 'data:image/x-icon;base64,AA=='
+    expect(icons).toEqual([])
+    expect(feeds.map((feed) => feed.iconId)).toEqual([8, 8, undefined, 9])
+    const loadIcons = () =>
+      Promise.all(feeds.map((f) => (f.iconId ? provider.feedIcon!(f.id, f.iconId) : '')))
+    expect(await loadIcons()).toEqual([image, image, '', ''])
+    await provider.subscriptions()
+    expect(await provider.feedIcon!('2', 8)).toBe(image)
+    expect(icons.sort()).toEqual(['/rss/v1/feeds/1/icon', '/rss/v1/feeds/4/icon'])
+  })
+
   it('maps scopes to the feed, category, unread and starred queries', async () => {
     const calls: URL[] = []
     const provider = createProvider({

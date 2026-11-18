@@ -168,7 +168,7 @@ struct ViewerView: View {
         app.openFeed(entry.feedId)
       } label: {
         HStack(spacing: 10) {
-          AvatarView(url: feed?.iconURL, name: author, size: 32, dark: true)
+          AvatarView(feed: feed, name: author, size: 32, dark: true)
           VStack(alignment: .leading, spacing: 1) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
               Text(author).font(.system(size: 14, weight: .semibold))
@@ -299,7 +299,7 @@ struct ViewerView: View {
       let feed = app.store.feeds.first { $0.id == entry.feedId }
       VStack {
         HStack(spacing: 8) {
-          AvatarView(url: feed?.iconURL, name: entry.author, size: 22, dark: true)
+          AvatarView(feed: feed, name: entry.author, size: 22, dark: true)
           Text(notice.kind == .next ? "下一组" : "上一组").foregroundStyle(Color.viewerSecondary)
           Text(feed?.author ?? entry.author).fontWeight(.bold)
           Text("\(entry.images.count) 张").foregroundStyle(Color.viewerSecondary)
@@ -418,7 +418,7 @@ private struct InfoSheet: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {
           HStack(spacing: 12) {
-            AvatarView(url: feed?.iconURL, name: author, size: 40, dark: true)
+            AvatarView(feed: feed, name: author, size: 40, dark: true)
             VStack(alignment: .leading, spacing: 2) {
               Text(author).font(.system(size: 16, weight: .semibold))
               Text((category.map { "\($0) · " } ?? "") + Formatting.relativeTime(entry.publishedAt, now: .now))

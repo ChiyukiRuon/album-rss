@@ -145,7 +145,7 @@ export function GalleryCard({
           className={styles.author}
           aria-label={`查看${author}的订阅`}
         >
-          <Avatar src={feed?.iconUrl} name={author} size={20} />
+          <Avatar feed={feed} name={author} size={20} />
           <span className={styles.name}>{author}</span>
           {category && <span className={styles.category}>{category}</span>}
         </Link>

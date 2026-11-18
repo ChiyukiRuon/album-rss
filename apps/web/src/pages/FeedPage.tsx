@@ -72,7 +72,7 @@ export function FeedPage() {
     <>
       <PageHeader
         leading={
-          <Avatar src={feed.iconUrl} name={feed.author} size={64} className={styles.headerAvatar} />
+          <Avatar feed={feed} name={feed.author} size={64} className={styles.headerAvatar} />
         }
         title={feed.author}
         subtitle={details.map((part, i) => (

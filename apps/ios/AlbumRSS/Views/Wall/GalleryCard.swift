@@ -118,7 +118,7 @@ struct GalleryCard: View {
         app.openFeed(entry.feedId)
       } label: {
         HStack(spacing: 7) {
-          AvatarView(url: feed?.iconURL, name: author, size: 20)
+          AvatarView(feed: feed, name: author, size: 20)
           ViewThatFits(in: .horizontal) {
             if let category, placement.width > 170 {
               HStack(spacing: 7) {
