@@ -85,8 +85,8 @@ struct BrowseView: View {
     if status == .unread {
       EmptyStateView(
         systemImage: "checkmark.circle",
-        title: "未读的图集都看完了",
-        description: "\(syncedText(.now))。可以再同步一次看看有没有新的，或者回顾全部图集。"
+        title: "没有未读的订阅",
+        description: "\(syncedText(.now))"
       ) {
         Button("同步", systemImage: "arrow.clockwise") { Task { await app.store.sync(explicit: true) } }
           .buttonStyle(InkButtonStyle(prominent: true))
@@ -97,7 +97,7 @@ struct BrowseView: View {
       EmptyStateView(
         systemImage: "arrow.clockwise",
         title: "这里还没有图集",
-        description: "订阅里还没有包含图片的文章。同步完成后，新的图集会出现在这里。"
+        description: "同步完成后，新的图集会出现在这里。"
       ) {
         Button("同步") { Task { await app.store.sync(explicit: true) } }
           .buttonStyle(InkButtonStyle(prominent: true))

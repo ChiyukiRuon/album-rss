@@ -61,13 +61,13 @@ export function SettingsPage() {
         <Section title="浏览">
           <SwitchRow
             label="打开图集时标为已读"
-            description="至少一张图片显示成功后才标记；滚动列表和预加载不会标记。"
+            description="至少一张图片显示成功后才标记。"
             checked={settings.autoRead}
             onChange={(autoRead) => actions.updateSettings({ autoRead })}
           />
           <SwitchRow
             label="下载成功后标为已读"
-            description="本次下载的图片全部成功后，将所属图集标为已读；下载失败时不标记。"
+            description="本次下载的图片全部成功后，将所属图集标为已读。"
             checked={settings.downloadRead}
             onChange={(downloadRead) => actions.updateSettings({ downloadRead })}
           />
@@ -201,7 +201,7 @@ export function SettingsPage() {
           <Section title="图片保存">
             <Row
               label="保存到设备"
-              description="下载按钮会尝试直接保存原图；来源限制跨域读取时，可打开原图后右键或长按保存。当前尚未提供离线图片缓存。"
+              description="下载按钮会尝试直接保存原图；来源限制跨域读取时，可打开原图后右键或长按保存。"
             />
           </Section>
         )}
@@ -231,7 +231,7 @@ export function SettingsPage() {
         )}
 
         <footer className={styles.about}>
-          <p>Album RSS · 直接连接你的 RSS 服务，不经过任何中转服务器。</p>
+          <p>Album RSS · 专为浏览图片设计的 RSS 阅读器</p>
           <a
             className={styles.repo}
             href="https://github.com/ChiyukiRuon/album-rss"
@@ -239,7 +239,7 @@ export function SettingsPage() {
             rel="noopener noreferrer"
           >
             <GithubLogoIcon className={styles.repoIcon} aria-hidden />
-            <span className="visually-hidden">GitHub：</span>
+            <span className="visually-hidden">GitHub: </span>
             ChiyukiRuon/album-rss
             <ArrowSquareOutIcon className={styles.repoArrow} aria-hidden />
           </a>

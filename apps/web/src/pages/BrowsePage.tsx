@@ -74,8 +74,8 @@ export function BrowsePage() {
           status === 'unread' ? (
             <EmptyState
               icon={<ChecksIcon aria-hidden />}
-              title="未读的图集都看完了"
-              description={`${syncedText}。可以再同步一次看看有没有新的，或者回顾全部图集。`}
+              title="没有未读的订阅"
+              description={`${syncedText}`}
               actions={
                 <>
                   <Button
@@ -93,7 +93,7 @@ export function BrowsePage() {
             <EmptyState
               icon={<ArrowClockwiseIcon aria-hidden />}
               title="这里还没有图集"
-              description="订阅里还没有包含图片的文章。同步完成后，新的图集会出现在这里。"
+              description="同步完成后，新的图集会出现在这里。"
               actions={
                 <Button variant="primary" onClick={() => void actions.sync({ explicit: true })}>
                   同步

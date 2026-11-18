@@ -34,10 +34,10 @@ struct SettingsView: View {
 
       Section("浏览") {
         Toggle(isOn: binding(\.autoRead)) {
-          SettingLabel(title: "打开图集时标为已读", detail: "至少一张图片显示成功后才标记；滚动列表和预加载不会标记。")
+          SettingLabel(title: "打开图集时标为已读", detail: "至少一张图片显示成功后才标记。")
         }
         Toggle(isOn: binding(\.downloadRead)) {
-          SettingLabel(title: "保存后标为已读", detail: "本次保存的图片全部成功后，将所属图集标为已读；失败时不标记。")
+          SettingLabel(title: "保存后标为已读", detail: "本次保存的图片全部成功后，将所属图集标为已读。")
         }
         Toggle(isOn: binding(\.showImageless)) {
           SettingLabel(title: "显示没有图片的文章", detail: "包括确认没有图片的文章，和图片还没解析出来的文章。")
@@ -111,7 +111,7 @@ struct SettingsView: View {
       } header: {
         Text("图片缓存")
       } footer: {
-        Text("浏览时看过的原图会缓存在这台设备上，离线时也能查看；超过上限时自动清理最久没看的。保存到相册的图片不受影响。")
+        Text("超过上限时自动清理最久的图片。保存到相册的图片不受影响。")
       }
 
       if store.endpoint?.isDemo == true {
@@ -127,7 +127,7 @@ struct SettingsView: View {
       Section {
         VStack(alignment: .leading, spacing: 8) {
           Wordmark()
-          Text("直接连接你的 RSS 服务，不经过任何中转服务器。")
+          Text("专为浏览图片设计的 RSS 阅读器")
             .font(.system(size: 13))
             .foregroundStyle(Color.ink2)
           Text("版本 \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
