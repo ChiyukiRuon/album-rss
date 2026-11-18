@@ -661,7 +661,7 @@ export const actions = {
   },
 
   /** 批量标为已读，并提供撤销 */
-  markAllRead(ids: readonly string[], scopeLabel: string) {
+  markAllRead(ids: readonly string[]) {
     const entries = appStore.get().entries
     const targets = ids.filter((id) => entries[id] && !entries[id].read)
     if (targets.length === 0) return
@@ -688,10 +688,7 @@ export const actions = {
           (!scope.folderId || feed.folderIds.includes(scope.folderId)),
       )
       const feedIds = new Set(feeds.map((feed) => feed.id))
-      actions.markAllRead(
-        state.order.filter((id) => feedIds.has(state.entries[id]!.feedId)),
-        label,
-      )
+      actions.markAllRead(state.order.filter((id) => feedIds.has(state.entries[id]!.feedId)))
       return
     }
     const epoch = generation
@@ -711,7 +708,7 @@ export const actions = {
         cursor = page.cursor
       } while (cursor)
       if (ids.length === 0) showToast({ message: `${label}没有未读的图集`, tone: 'success' })
-      else actions.markAllRead(ids, label)
+      else actions.markAllRead(ids)
     } catch (error) {
       if (epoch === generation)
         showToast({ message: '标为已读失败', detail: errorMessage(error), tone: 'warning' })
